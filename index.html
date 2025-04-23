@@ -7,45 +7,60 @@
   <title>Rhythm Tap Game</title>
   <style>
     html, body {
-      margin: 0; padding: 0;
-      width: 100%; height: 100%;
-      overflow: hidden;
-      background: #111;
-      color: #fff;
-      font-family: sans-serif;
+      margin:0; padding:0;
+      width:100%; height:100%;
+      overflow:hidden;
+      background:#111;
+      color:#fff;
+      font-family:sans-serif;
     }
     #score {
-      position: absolute;
-      top: 10px; left: 50%;
-      transform: translateX(-50%);
-      font-size: 20px;
-      pointer-events: none;
+      position:absolute; top:10px; left:50%;
+      transform:translateX(-50%);
+      font-size:20px;
+      pointer-events:none;
+    }
+    #score.score-pop {
+      animation: pop 0.3s ease-out;
+    }
+    @keyframes pop {
+      0%   { transform: translateX(-50%) scale(1); }
+      50%  { transform: translateX(-50%) scale(1.4); }
+      100% { transform: translateX(-50%) scale(1); }
     }
     #message {
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      font-size: 24px;
-      color: #ccc;
-      pointer-events: none;
+      position:absolute;
+      top:50%; left:50%;
+      transform:translate(-50%,-50%);
+      font-size:24px;
+      color:#ccc;
+      pointer-events:none;
+    }
+    #pauseButton {
+      position:absolute; top:10px; right:10px;
+      padding:6px 12px;
+      background:#222; color:#fff;
+      border:1px solid #555;
+      border-radius:4px;
+      font-size:14px;
+      z-index:10;
     }
     canvas {
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      touch-action: none; /* disable scrolling on tap */
+      position:absolute; top:0; left:0;
+      width:100%; height:100%;
+      touch-action:none;
     }
   </style>
 </head>
 <body>
   <div id="score">Score: 0</div>
+  <button id="pauseButton">Pause</button>
   <div id="message">Tap to Start</div>
 
-  <!-- your song; make sure this file is alongside index.html & game.js -->
+  <!-- your track -->
   <audio id="gameAudio" src="mysong.mp3" preload="auto"></audio>
 
   <canvas id="gameCanvas"></canvas>
-
   <script src="game.js"></script>
 </body>
 </html>
