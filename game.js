@@ -1,49 +1,54 @@
-// ---- Setup & State ----
-const canvas      = document.getElementById('gameCanvas');
-const ctx         = canvas.getContext('2d');
-const scoreDiv    = document.getElementById('score');
-const msgDiv      = document.getElementById('message');
-const audio       = document.getElementById('gameAudio');
+// ---- Elements & State ----
+const canvas   = document.getElementById('gameCanvas');
+const ctx      = canvas.getContext('2d');
+const scoreDiv = document.getElementById('score');
+const msgDiv   = document.getElementById('message');
+const audio    = document.getElementById('gameAudio');
 
 let started    = false;
 let score      = 0;
 const squares  = [];
 const squareSize = 50;
+
+// Fit canvas to full screen
+function resize() {
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Hit zone
 const hitZoneY = canvas.height - 100;
 
-// 3 lanes at 25%, 50%, 75%
+// Lanes at 25%, 50%, 75% width
 const lanes = [
   { x: canvas.width * 0.25 },
   { x: canvas.width * 0.50 },
   { x: canvas.width * 0.75 },
 ];
 
-// Timing for 135 BPM
+// Timing (135 BPM, 2-beat fall, 16th-note spawn)
 const bpm             = 135;
-const beatInterval    = 60 / bpm;                
-const travelBeats     = 2;                       
-const travelTime      = beatInterval * travelBeats;
+const beatInterval    = 60 / bpm;               // seconds per beat
+const travelBeats     = 2;                      // beats to fall
+const travelTime      = beatInterval * travelBeats; // seconds
 const fps             = 60;
 const pixelsPerFrame  = (hitZoneY + squareSize) / (travelTime * fps);
+const spawnIntervalMs = (beatInterval * 1000) / 4;  // ms per 16th
+let spawnIntervalID;
 
-// Spawn every 16th note
-const spawnIntervalMs = (beatInterval * 1000) / 4;
-let spawnIntervalID   = null;
-
-// ---- Input Handling ----
-// Catch all the possible “tap/click” events
-['pointerdown','mousedown','touchstart','click'].forEach(evt => {
-  canvas.addEventListener(evt, onTap, { passive: false });
-});
+// ---- Touch / Click Handling ----
+// Start or hit on first touch/click
+canvas.addEventListener('touchstart', onTap, { passive: false });
+canvas.addEventListener('mousedown', onTap);
 
 function onTap(e) {
   e.preventDefault();
-  // Uncomment to debug: 
-  // console.log('onTap fired via', e.type);
   if (!started) {
     startGame();
   } else {
-    handleHit(e);
+    registerHit(e);
   }
 }
 
@@ -52,19 +57,21 @@ function startGame() {
   started = true;
   msgDiv.style.display = 'none';
 
-  // Play your song
+  // Play your track immediately
   audio.currentTime = 0;
-  audio.play().catch(err => console.log('Audio play error:', err));
+  audio.play().catch(err => console.log('Audio play failed:', err));
 
-  // Immediate visual feedback
+  // Show one square right away
   spawnSquare();
 
-  // Then regular random spawns
+  // Then keep spawning randomly on 16th-note intervals
   spawnIntervalID = setInterval(spawnSquare, spawnIntervalMs);
 
+  // Begin the draw loop
   requestAnimationFrame(draw);
 }
 
+// ---- Spawn Logic ----
 function spawnSquare() {
   if (Math.random() < 0.5) {
     const laneIndex = Math.floor(Math.random() * lanes.length);
@@ -73,7 +80,7 @@ function spawnSquare() {
 }
 
 // ---- Hit Detection ----
-function handleHit(e) {
+function registerHit(e) {
   const rect = canvas.getBoundingClientRect();
   const clientX = e.touches ? e.touches[0].clientX : e.clientX;
   const x = clientX - rect.left;
@@ -95,8 +102,9 @@ function handleHit(e) {
   }
 }
 
-// ---- Render Loop ----
+// ---- Draw Loop ----
 function draw() {
+  // Clear
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   // Draw hit zones
@@ -124,9 +132,8 @@ function draw() {
       squareSize
     );
 
-    if (sq.y > canvas.height) {
-      squares.splice(i, 1);
-    }
+    // Remove off-screen
+    if (sq.y > canvas.height) squares.splice(i, 1);
   }
 
   requestAnimationFrame(draw);
