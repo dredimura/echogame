@@ -2,14 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- 1) Ensure proper scaling on mobile -->
+  <!-- Mobile viewport -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
   <title>Rhythm Tap Game</title>
-
-  <!-- 2) Load Tone.js before your game code -->
-  <script src="https://cdn.jsdelivr.net/npm/tone@14.7.77/build/Tone.min.js"></script>
-
   <style>
     body {
       margin: 0;
@@ -39,17 +34,18 @@
       display: block;
       margin: 0 auto;
       background: #222;
-      /* 3) Prevent scroll/zoom on touch */
-      touch-action: none;
+      touch-action: none; /* prevent scrolling/zoom on tap */
     }
   </style>
 </head>
 <body>
   <div id="score">Score: 0</div>
   <div id="message">Tap to Start</div>
-  <canvas id="gameCanvas" width="400" height="600"></canvas>
 
-  <!-- 4) Your game logic -->
+  <!-- HTML5 audio player (plays your track reliably on mobile) -->
+  <audio id="gameAudio" src="mysong.mp3" preload="auto"></audio>
+
+  <canvas id="gameCanvas" width="400" height="600"></canvas>
   <script src="game.js"></script>
 </body>
 </html>
