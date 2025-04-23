@@ -21,7 +21,7 @@
   let totalNotes   = 0;
   let spawnID      = null;
   const squares    = [];
-  const particles  = [];
+  const effects    = []; // holds flash+particles
   const squareSize = 50;
 
   // Resize & lanes
@@ -46,17 +46,17 @@
   const pxPerFrame   = (hitZoneY + squareSize) / (travelSec * fps);
   const spawnMs      = (beatSec * 1000) / 4;
 
-  // Colors: blue, pink, neon-green
+  // Colors for lanes
   const colors = ['#0ff','#f0f','#0f0'];
 
-  // Input
+  // Input handler
   canvas.addEventListener('pointerdown', e => {
     e.preventDefault();
     if (!started) startGame();
     else if (!paused) handleHit(e);
   }, { passive: false });
 
-  // Start
+  // Start gameplay
   function startGame() {
     started = true;
     msgEl.style.display    = 'none';
@@ -69,7 +69,7 @@
     requestAnimationFrame(draw);
   }
 
-  // Pause/Resume
+  // Pause/resume
   pauseBtn.addEventListener('click', e => {
     e.stopPropagation();
     if (!started) return;
@@ -86,7 +86,7 @@
     }
   });
 
-  // Spawn logic
+  // Spawn squares randomly
   function spawnSquare() {
     if (Math.random() < 0.5) {
       squares.push({ y: -squareSize, lane: Math.floor(Math.random()*3) });
@@ -95,11 +95,11 @@
     }
   }
 
-  // Hit detection
+  // Hit detection with ±30px window
   function handleHit(e) {
     const rect = canvas.getBoundingClientRect();
-    const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-    const tol = 30;
+    const x    = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+    const tol  = 30;
     for (let i = squares.length - 1; i >= 0; i--) {
       const sq = squares[i];
       const lx = lanes[sq.lane].x;
@@ -109,27 +109,26 @@
         sq.y >= hitZoneY - tol &&
         sq.y <= hitZoneY + squareSize + tol
       ) {
+        // correct hit!
         squares.splice(i,1);
         score++;
-        scoreEl.textContent = `Score: ${score}`;        // <-- FIXED
+        scoreEl.textContent = `Score: ${score}`;
         scoreEl.classList.add('pop');
-        scoreEl.addEventListener('animationend', () => {
-          scoreEl.classList.remove('pop');
-        }, { once: true });
+        scoreEl.addEventListener('animationend', () => scoreEl.classList.remove('pop'), { once: true });
         updatePercent();
-        spawnParticles(sq.lane, lx, hitZoneY + squareSize/2);
+        triggerEffects(sq.lane, lx, hitZoneY + squareSize/2);
         return;
       }
     }
   }
 
-  // Update percent display
+  // Update % display
   function updatePercent() {
     const pct = totalNotes ? Math.round(score/totalNotes*100) : 0;
     percentEl.textContent = `${pct}%`;
   }
 
-  // On song end → leaderboard
+  // When audio ends → show leaderboard
   function onGameEnd() {
     paused = true;
     clearInterval(spawnID);
@@ -138,54 +137,56 @@
     overlay.style.display = 'block';
   }
 
-  // Leaderboard
+  // Leaderboard helpers
   function loadLeaderboard() {
     const board = JSON.parse(localStorage.getItem('leaderboard')||'[]');
     boardList.innerHTML = '';
-    board.slice(0,5).forEach(r => {
+    board.slice(0,5).forEach(r=>{
       const li = document.createElement('li');
       li.textContent = `${r.initials} - ${r.score} (${r.percent}%)`;
       boardList.appendChild(li);
     });
   }
   submitBtn.addEventListener('click', () => {
-    const initials = initialsIn.value.toUpperCase().slice(0,3) || '---';
+    const initials = initialsIn.value.toUpperCase().slice(0,3)||'---';
     const board = JSON.parse(localStorage.getItem('leaderboard')||'[]');
     board.unshift({ initials, score, percent: percentEl.textContent.replace('%','') });
     localStorage.setItem('leaderboard', JSON.stringify(board.slice(0,10)));
     loadLeaderboard();
   });
-  closeBtn.addEventListener('click', () => overlay.style.display = 'none');
+  closeBtn.addEventListener('click', () => overlay.style.display='none');
 
-  // Particles & flash
-  function spawnParticles(lane, cx, cy) {
-    const group = { lane, t: flashDur, pieces: [] };
-    for (let j=0;j<8;j++){
+  // Effect: white flash + break-apart particles
+  function triggerEffects(lane, cx, cy) {
+    // flash
+    effects.push({ lane, t: 0.2, pieces: [] });
+    // particles
+    const group = effects[effects.length-1];
+    for (let j=0; j<8; j++) {
       const ang = Math.random()*Math.PI*2;
-      const speed = 100+Math.random()*100;
+      const speed = 100 + Math.random()*100;
       group.pieces.push({
         x: cx, y: cy,
         vx: Math.cos(ang)*speed,
         vy: Math.sin(ang)*speed,
-        t: particleLife,
+        t: 0.5,
         ci: lane
       });
     }
-    particles.push(group);
   }
 
-  // Draw loop
+  // Draw everything
   function draw() {
     if (paused) return;
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    // Hit zones
+    // draw target zones
     ctx.strokeStyle = '#555';
     lanes.forEach(lane => {
       ctx.strokeRect(lane.x - squareSize/2, hitZoneY, squareSize, squareSize);
     });
 
-    // Draw curved picks
+    // draw & move curved-bottom picks
     squares.forEach(sq => {
       sq.y += pxPerFrame;
       const lx = lanes[sq.lane].x;
@@ -199,33 +200,33 @@
       ctx.fill();
     });
 
-    // Remove off-screen
-    for (let i = squares.length-1; i>=0; i--){
-      if (squares[i].y>canvas.height) squares.splice(i,1);
+    // remove off-screen
+    for (let i=squares.length-1; i>=0; i--) {
+      if (squares[i].y > canvas.height) squares.splice(i,1);
     }
 
-    // Draw flashes & particles
+    // render & update effects
     const dt = 1/fps;
-    for (let i = particles.length-1; i>=0; i--) {
-      const grp = particles[i];
-      const alpha = grp.t/flashDur;
-      const lx = lanes[grp.lane].x;
-      // flash
+    for (let i=effects.length-1; i>=0; i--) {
+      const g = effects[i];
+      const alpha = g.t / 0.2;
+      const lx = lanes[g.lane].x;
+      // white flash
       ctx.save(); ctx.globalAlpha = alpha;
       ctx.fillStyle = '#fff';
       ctx.fillRect(lx - squareSize/2, hitZoneY, squareSize, squareSize);
       ctx.restore();
-      grp.t -= dt;
-      // pieces
-      grp.pieces.forEach(p => {
+      g.t -= dt;
+      // particles
+      g.pieces.forEach(p => {
         p.x += p.vx*dt; p.y += p.vy*dt; p.t -= dt;
-        ctx.save(); ctx.globalAlpha = p.t/particleLife;
+        ctx.save(); ctx.globalAlpha = p.t/0.5;
         ctx.fillStyle = colors[p.ci];
-        ctx.fillRect(p.x-3, p.y-3, 6, 6);
+        ctx.fillRect(p.x-3, p.y-3, 6,6);
         ctx.restore();
       });
-      grp.pieces = grp.pieces.filter(p => p.t>0);
-      if (grp.t<=0 && grp.pieces.length===0) particles.splice(i,1);
+      g.pieces = g.pieces.filter(p=>p.t>0);
+      if (g.t <= 0 && g.pieces.length===0) effects.splice(i,1);
     }
 
     requestAnimationFrame(draw);
