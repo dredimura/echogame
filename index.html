@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- ensure mobile scaling -->
+  <!-- Mobile viewport -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rhythm Tap Game</title>
   <style>
@@ -45,14 +45,14 @@
       background: #222; color: #fff;
       border: 1px solid #555; border-radius: 4px;
       font-size: 14px;
-      display: none;        /* hidden until game starts */
+      display: none;
       z-index: 10;
     }
     canvas {
       position: absolute;
       top: 0; left: 0;
       width: 100%; height: 100%;
-      touch-action: none;    /* disable scroll on touch */
+      touch-action: none;
     }
   </style>
 </head>
@@ -61,7 +61,7 @@
   <button id="pauseButton">Pause</button>
   <div id="message">Tap to Start</div>
 
-  <!-- your track (must be alongside these files) -->
+  <!-- your track -->
   <audio id="gameAudio" src="mysong.mp3" preload="auto"></audio>
 
   <canvas id="gameCanvas"></canvas>
