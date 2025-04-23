@@ -1,182 +1,217 @@
 (() => {
-  // -- Elements & State --
-  const canvas   = document.getElementById('gameCanvas');
-  const ctx      = canvas.getContext('2d');
-  const scoreDiv = document.getElementById('score');
-  const msgDiv   = document.getElementById('message');
-  const pauseBtn = document.getElementById('pauseButton');
-  const audio    = document.getElementById('gameAudio');
+  // Elements & state
+  const canvas      = document.getElementById('gameCanvas');
+  const ctx         = canvas.getContext('2d');
+  const scoreDiv    = document.getElementById('score');
+  const percentDiv  = document.getElementById('percent');
+  const msgDiv      = document.getElementById('message');
+  const pauseBtn    = document.getElementById('pauseButton');
+  const audio       = document.getElementById('gameAudio');
+  const overlay     = document.getElementById('leaderboardOverlay');
+  const finalScoreP = document.getElementById('finalScore');
+  const initialsIn  = document.getElementById('initials');
+  const submitBtn   = document.getElementById('submitScore');
+  const boardList   = document.getElementById('leaderboardList');
+  const closeBtn    = document.getElementById('closeLeaderboard');
 
-  let started    = false;
-  let paused     = false;
-  let score      = 0;
-  let spawnIntervalID = null;
-  const squares  = [];
-  const squareSize = 50;
-  const flashes  = [];
-  const flashDuration = 0.2; // seconds
+  let started       = false;
+  let paused        = false;
+  let score         = 0;
+  let totalNotes    = 0;
+  let spawnIntID    = null;
+  const squares     = [];
+  const particles   = [];
+  const squareSize  = 50;
+  const flashDuration   = 0.2; // secs
+  const particleLifetime = 0.5;
 
-  // -- Resize & Lanes Setup --
+  // Resize & lanes
   let hitZoneY;
   const lanes = [{x:0},{x:0},{x:0}];
-
-  function resize() {
+  function resize(){
     canvas.width  = window.innerWidth;
     canvas.height = window.innerHeight;
     hitZoneY      = canvas.height - 100;
-    lanes[0].x = canvas.width * 0.25;
-    lanes[1].x = canvas.width * 0.50;
-    lanes[2].x = canvas.width * 0.75;
+    lanes[0].x = canvas.width*0.25;
+    lanes[1].x = canvas.width*0.50;
+    lanes[2].x = canvas.width*0.75;
   }
   window.addEventListener('resize', resize);
   resize();
 
-  // -- Timing Config (135 BPM, travel & spawn) --
-  const bpm             = 135;
-  const beatInterval    = 60 / bpm;                 
-  const travelBeats     = 2;                        
-  const travelTime      = beatInterval * travelBeats;
-  const fps             = 60;
-  const pixelsPerFrame  = (hitZoneY + squareSize) / (travelTime * fps);
-  const spawnIntervalMs = (beatInterval * 1000) / 4; // 16th notes
+  // Timing
+  const bpm            = 135;
+  const beatInterval   = 60/bpm;
+  const travelTime     = beatInterval*2;
+  const fps            = 60;
+  const pixelsPerFrame = (hitZoneY+squareSize)/(travelTime*fps);
+  const spawnMs        = (beatInterval*1000)/4;
 
-  // -- Colors per lane --
-  const colors = ['#0ff','#f0f','#0f0']; // blue, pink, neon-green
+  // Colors
+  const colors = ['#0ff','#f0f','#0f0'];
 
-  // -- Input Handling --
-  canvas.addEventListener('pointerdown', onTap, { passive: false });
-
-  function onTap(e) {
+  // Input
+  canvas.addEventListener('pointerdown', e => {
     e.preventDefault();
-    if (!started)      startGame();
-    else if (!paused)  registerHit(e);
-  }
+    if(!started)       startGame();
+    else if(!paused)   handleHit(e);
+  },{passive:false});
 
-  // -- Start Game --
-  function startGame() {
+  // Start
+  function startGame(){
     started = true;
     msgDiv.style.display   = 'none';
     pauseBtn.style.display = 'block';
-
-    // play track
     audio.currentTime = 0;
     audio.play().catch(console.warn);
-
-    // initial square & recurring spawns
+    audio.addEventListener('ended', onGameEnd);
     spawnSquare();
-    spawnIntervalID = setInterval(spawnSquare, spawnIntervalMs);
-
+    spawnIntID = setInterval(spawnSquare,spawnMs);
     requestAnimationFrame(draw);
   }
 
-  // -- Pause / Resume --
-  pauseBtn.addEventListener('click', e => {
-    e.stopPropagation(); // don’t trigger canvas tap
-    if (!started) return;
+  // Pause
+  pauseBtn.addEventListener('click', e=>{
+    e.stopPropagation();
+    if(!started) return;
     paused = !paused;
-    if (paused) {
+    if(paused){
       audio.pause();
-      clearInterval(spawnIntervalID);
-      pauseBtn.textContent = 'Resume';
+      clearInterval(spawnIntID);
+      pauseBtn.textContent='Resume';
     } else {
       audio.play().catch(console.warn);
-      spawnIntervalID = setInterval(spawnSquare, spawnIntervalMs);
-      pauseBtn.textContent = 'Pause';
+      spawnIntID=setInterval(spawnSquare,spawnMs);
+      pauseBtn.textContent='Pause';
       requestAnimationFrame(draw);
     }
   });
 
-  // -- Spawn Logic --
-  function spawnSquare() {
-    if (Math.random() < 0.5) {
-      const lane = Math.floor(Math.random() * lanes.length);
-      squares.push({ y: -squareSize, lane });
+  // Spawn
+  function spawnSquare(){
+    if(Math.random()<0.5){
+      squares.push({ y:-squareSize, lane:Math.floor(Math.random()*3) });
+      totalNotes++;
+      updatePercent();
     }
   }
 
-  // -- Hit Detection + Effects --
-  function registerHit(e) {
-    const rect = canvas.getBoundingClientRect();
-    const clientX = (e.touches ? e.touches[0].clientX : e.clientX);
-    const x = clientX - rect.left;
-
-    for (let i = squares.length - 1; i >= 0; i--) {
-      const sq = squares[i];
-      const laneX = lanes[sq.lane].x;
-      if (
-        x >= laneX - squareSize/2 &&
-        x <= laneX + squareSize/2 &&
-        sq.y >= hitZoneY &&
-        sq.y <= hitZoneY + squareSize
-      ) {
+  // Hit handling
+  function handleHit(e){
+    const r = canvas.getBoundingClientRect();
+    const x = (e.touches?e.touches[0].clientX:e.clientX)-r.left;
+    for(let i=squares.length-1;i>=0;i--){
+      const sq = squares[i], lx=lanes[sq.lane].x;
+      const margin=30;
+      if(x>=lx-squareSize/2-margin && x<=lx+squareSize/2+margin &&
+         sq.y>=hitZoneY-margin && sq.y<=hitZoneY+squareSize+margin){
         squares.splice(i,1);
-
-        // score & pop
-        score++;
-        scoreDiv.textContent = `Score: ${score}`;
+        score++; updatePercent();
+        // score pop
         scoreDiv.classList.add('pop');
-        scoreDiv.addEventListener('animationend',
-          () => scoreDiv.classList.remove('pop'),
-          { once: true }
-        );
-
-        // lane flash
-        flashes.push({ lane: sq.lane, alpha: 1 });
+        scoreDiv.addEventListener('animationend',()=>{
+          scoreDiv.classList.remove('pop');
+        },{once:true});
+        // flash
+        particles.push({ lane:sq.lane, t:flashDuration, pieces:spawnParticles(lx,hitZoneY+squareSize/2) });
         return;
       }
     }
   }
 
-  // -- Draw Loop --
-  function draw() {
-    if (paused) return;
+  // Spawn particles for break-apart
+  function spawnParticles(x,y){
+    const arr=[];
+    for(let i=0;i<8;i++){
+      const ang = Math.random()*Math.PI*2;
+      const speed = 100+Math.random()*100;
+      arr.push({ x,y, vx:Math.cos(ang)*speed, vy:Math.sin(ang)*speed, t:particleLifetime });
+    }
+    return arr;
+  }
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // Update percent
+  function updatePercent(){
+    const pct = totalNotes?Math.round(score/totalNotes*100):0;
+    percentDiv.textContent = pct+'%';
+  }
 
-    // draw hit‐zones
-    ctx.strokeStyle = '#555';
-    lanes.forEach(lane => {
-      ctx.strokeRect(
-        lane.x - squareSize/2,
-        hitZoneY,
-        squareSize,
-        squareSize
-      );
+  // On end
+  function onGameEnd(){
+    paused = true;
+    clearInterval(spawnIntID);
+    finalScoreP.textContent = `Score: ${score} (${percentDiv.textContent})`;
+    loadLeaderboard();
+    overlay.style.display='block';
+  }
+
+  // Leaderboard
+  function loadLeaderboard(){
+    const board = JSON.parse(localStorage.getItem('leaderboard')||'[]');
+    boardList.innerHTML='';
+    board.slice(0,5).forEach(rec=>{
+      const li=document.createElement('li');
+      li.textContent=`${rec.initials} - ${rec.score} (${rec.percent}%)`;
+      boardList.appendChild(li);
     });
+  }
+  submitBtn.addEventListener('click',()=>{
+    const initials=initialsIn.value.toUpperCase().slice(0,3)||'---';
+    const board=JSON.parse(localStorage.getItem('leaderboard')||'[]');
+    board.unshift({ initials, score, percent:percentDiv.textContent.replace('%','') });
+    localStorage.setItem('leaderboard', JSON.stringify(board.slice(0,10)));
+    loadLeaderboard();
+  });
+  closeBtn.addEventListener('click',()=> overlay.style.display='none');
 
-    // draw & move squares
-    for (let i = squares.length - 1; i >= 0; i--) {
-      const sq = squares[i];
-      sq.y += pixelsPerFrame;
-      const laneX = lanes[sq.lane].x;
+  // Draw loop
+  function draw(){
+    if(paused) return;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    // hit zones
+    ctx.strokeStyle='#555';
+    lanes.forEach(lane=>{
+      ctx.strokeRect(lane.x-squareSize/2,hitZoneY,squareSize,squareSize);
+    });
+    // squares as picks (triangles)
+    squares.forEach(sq=>{
+      sq.y+=pixelsPerFrame;
+      const lx=lanes[sq.lane].x;
       ctx.fillStyle = colors[sq.lane];
-      ctx.fillRect(
-        laneX - squareSize/2,
-        sq.y,
-        squareSize,
-        squareSize
-      );
-      if (sq.y > canvas.height) squares.splice(i,1);
+      ctx.beginPath();
+      ctx.moveTo(lx, sq.y);
+      ctx.lineTo(lx - squareSize/2, sq.y + squareSize*1.1);
+      ctx.lineTo(lx + squareSize/2, sq.y + squareSize*1.1);
+      ctx.closePath();
+      ctx.fill();
+    });
+    // remove off-screen
+    for(let i=squares.length-1;i>=0;i--){
+      if(squares[i].y>canvas.height) squares.splice(i,1);
     }
-
-    // draw & fade flashes
-    for (let i = flashes.length - 1; i >= 0; i--) {
-      const fx = flashes[i];
-      const laneX = lanes[fx.lane].x;
-      ctx.save();
-      ctx.globalAlpha = fx.alpha;
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(
-        laneX - squareSize/2,
-        hitZoneY,
-        squareSize,
-        squareSize
-      );
+    // flashes and particles
+    const dt=1/fps;
+    for(let i=particles.length-1;i>=0;i--){
+      const group = particles[i];
+      // flash
+      const alpha = group.t/flashDuration;
+      const lx = lanes[group.lane].x;
+      ctx.save(); ctx.globalAlpha=alpha;
+      ctx.fillStyle='#fff';
+      ctx.fillRect(lx-squareSize/2,hitZoneY,squareSize,squareSize);
       ctx.restore();
-      fx.alpha -= 1 / (fps * flashDuration);
-      if (fx.alpha <= 0) flashes.splice(i,1);
+      // pieces
+      group.pieces.forEach(p=>{
+        p.x += p.vx*dt; p.y += p.vy*dt; p.t -= dt;
+        ctx.save(); ctx.globalAlpha = p.t/particleLifetime;
+        ctx.fillStyle = colors[group.lane];
+        ctx.fillRect(p.x-3,p.y-3,6,6);
+        ctx.restore();
+      });
+      group.t -= dt;
+      if(group.t<=0) particles.splice(i,1);
+      else group.pieces = group.pieces.filter(p=>p.t>0);
     }
-
     requestAnimationFrame(draw);
   }
 })();
