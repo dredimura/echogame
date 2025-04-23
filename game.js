@@ -15,23 +15,20 @@
   const closeBtn    = document.getElementById('closeLeaderboard');
 
   // State
-  let started      = false;
-  let paused       = false;
-  let score        = 0;
-  let totalNotes   = 0;
-  let spawnID      = null;
-  const squares    = [];
-  const effects    = []; // { lane, t, pieces[] }
+  let started      = false, paused = false;
+  let score        = 0, totalNotes = 0, spawnID = null;
+  const squares    = [], effects = [], texts = [];
   const squareSize = 50;
 
-  // Flash & particle timings
-  const flashDur      = 0.1;  // shorter flash
-  const particleLife  = 0.5;  // same particle lifetime
+  // Effect durations
+  const flashDur     = 0.1;  // quick flash
+  const particleLife = 0.5;  // particle fade
+  const textDur      = 0.5;  // accuracy text
 
-  // Resize & lane positions
+  // Resize & lanes
   let hitZoneY;
   const lanes = [{x:0},{x:0},{x:0}];
-  function resize() {
+  function resize(){
     canvas.width  = window.innerWidth;
     canvas.height = window.innerHeight;
     hitZoneY      = canvas.height - 100;
@@ -43,25 +40,25 @@
   resize();
 
   // Timing
-  const bpm         = 135;
-  const beatSec     = 60 / bpm;
-  const travelSec   = beatSec * 2;
-  const fps         = 60;
-  const pxPerFrame  = (hitZoneY + squareSize) / (travelSec * fps);
-  const spawnMs     = (beatSec * 1000) / 4;
+  const bpm        = 135;
+  const beatSec    = 60 / bpm;
+  const travelSec  = beatSec * 2;
+  const fps        = 60;
+  const pxPerFrame = (hitZoneY + squareSize) / (travelSec * fps);
+  const spawnMs    = (beatSec * 1000) / 4;
 
-  // Lane colors: blue, pink, neon-green
+  // Lane colors
   const colors = ['#0ff','#f0f','#0f0'];
 
   // Input
   canvas.addEventListener('pointerdown', e => {
     e.preventDefault();
-    if (!started) startGame();
-    else if (!paused) handleHit(e);
-  }, { passive:false });
+    if(!started) startGame();
+    else if(!paused) handleHit(e);
+  }, {passive:false});
 
-  // Start game
-  function startGame() {
+  // Start
+  function startGame(){
     started = true;
     msgEl.style.display    = 'none';
     pauseBtn.style.display = 'block';
@@ -73,12 +70,12 @@
     requestAnimationFrame(draw);
   }
 
-  // Pause / Resume
+  // Pause/Resume
   pauseBtn.addEventListener('click', e => {
     e.stopPropagation();
-    if (!started) return;
+    if(!started) return;
     paused = !paused;
-    if (paused) {
+    if(paused){
       audio.pause();
       clearInterval(spawnID);
       pauseBtn.textContent = 'Resume';
@@ -90,50 +87,53 @@
     }
   });
 
-  // Spawn logic
-  function spawnSquare() {
-    if (Math.random() < 0.5) {
+  // Spawn squares
+  function spawnSquare(){
+    if(Math.random() < 0.5){
       squares.push({ y: -squareSize, lane: Math.floor(Math.random()*3) });
       totalNotes++;
       updatePercent();
     }
   }
 
-  // Hit detection & effects
-  function handleHit(e) {
+  // Hit detection with accuracy scoring
+  function handleHit(e){
     const rect = canvas.getBoundingClientRect();
     const x    = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
     const tol  = 30;
-    for (let i = squares.length - 1; i >= 0; i--) {
-      const sq = squares[i];
-      const lx = lanes[sq.lane].x;
-      if (
-        x >= lx - squareSize/2 - tol &&
-        x <= lx + squareSize/2 + tol &&
-        sq.y >= hitZoneY - tol &&
-        sq.y <= hitZoneY + squareSize + tol
-      ) {
-        // correct hit
+    for(let i=squares.length-1; i>=0; i--){
+      const sq = squares[i], lx = lanes[sq.lane].x;
+      if(x>=lx-squareSize/2-tol && x<=lx+squareSize/2+tol &&
+         sq.y>=hitZoneY-tol && sq.y<=hitZoneY+squareSize+tol){
         squares.splice(i,1);
-        score++;
+        // accuracy
+        const diff = Math.abs(sq.y - hitZoneY);
+        let acc, pts;
+        if(diff < 5){ acc='Perfect';    pts=100; }
+        else if(diff <15){ acc='Excellent'; pts=80;  }
+        else if(diff <30){ acc='Great';     pts=50;  }
+        else if(diff <45){ acc='Good';      pts=20;  }
+        else {           acc='Ok';        pts=10;  }
+        score += pts;
         scoreEl.textContent = `Score: ${score}`;
         scoreEl.classList.add('pop');
         scoreEl.addEventListener('animationend', ()=>scoreEl.classList.remove('pop'), { once:true });
         updatePercent();
         triggerEffects(sq.lane, lx, hitZoneY + squareSize/2);
+        texts.push({ text: acc, x: lx, y: hitZoneY - 20, t: textDur });
         return;
       }
     }
   }
 
-  // Percent display
-  function updatePercent() {
-    const pct = totalNotes ? Math.round(score/totalNotes*100) : 0;
+  // Update percentage
+  function updatePercent(){
+    const pct = totalNotes ? Math.round(score/(totalNotes*100)*100) : 0;
     percentEl.textContent = `${pct}%`;
   }
 
-  // Game end → leaderboard
-  function onGameEnd() {
+  // On end
+  function onGameEnd(){
     paused = true;
     clearInterval(spawnID);
     finalScoreP.textContent = `Score: ${score} (${percentEl.textContent})`;
@@ -141,10 +141,10 @@
     overlay.style.display = 'block';
   }
 
-  // Leaderboard load/save
-  function loadLeaderboard() {
+  // Leaderboard
+  function loadLeaderboard(){
     const board = JSON.parse(localStorage.getItem('leaderboard')||'[]');
-    boardList.innerHTML = '';
+    boardList.innerHTML='';
     board.slice(0,5).forEach(r => {
       const li = document.createElement('li');
       li.textContent = `${r.initials} - ${r.score} (${r.percent}%)`;
@@ -160,46 +160,47 @@
   });
   closeBtn.addEventListener('click', ()=> overlay.style.display='none');
 
-  // Trigger flash + break-apart particles
-  function triggerEffects(lane, cx, cy) {
-    // remove any existing effect on that lane first
-    for (let i = effects.length-1; i>=0; i--) {
-      if (effects[i].lane === lane) effects.splice(i,1);
-    }
-    // create new effect group
-    const grp = { lane, t: flashDur, pieces: [] };
-    // spawn pieces
-    for (let j=0;j<8;j++){
+  // Effects: flash + particles
+  function triggerEffects(lane, cx, cy){
+    // remove existing flash on lane
+    for(let i=effects.length-1;i>=0;i--) if(effects[i].lane===lane) effects.splice(i,1);
+    const g = { lane, t: flashDur, pieces: [] };
+    for(let j=0;j<8;j++){
       const ang = Math.random()*Math.PI*2;
       const speed = 100 + Math.random()*100;
-      grp.pieces.push({
-        x: cx, y: cy,
-        vx: Math.cos(ang)*speed,
-        vy: Math.sin(ang)*speed,
-        t: particleLife,
-        ci: lane
-      });
+      g.pieces.push({ x:cx, y:cy, vx:Math.cos(ang)*speed, vy:Math.sin(ang)*speed, t:particleLife, ci:lane });
     }
-    effects.push(grp);
+    effects.push(g);
   }
 
-  // Draw everything
-  function draw() {
-    if (paused) return;
+  // Draw loop
+  function draw(){
+    if(paused) return;
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    // target zones
+    // draw guitar strings
+    [4,2,1].forEach((lw,i)=>{
+      ctx.strokeStyle = '#bbb';
+      ctx.lineWidth = lw;
+      const x = lanes[i].x;
+      ctx.beginPath();
+      ctx.moveTo(x,0);
+      ctx.lineTo(x,canvas.height);
+      ctx.stroke();
+    });
+
+    // draw target zones
     ctx.strokeStyle = '#555';
-    lanes.forEach(lane=>{
+    lanes.forEach(lane => {
       ctx.strokeRect(lane.x - squareSize/2, hitZoneY, squareSize, squareSize);
     });
 
-    // draw curved picks
+    // draw picks
     squares.forEach(sq => {
       sq.y += pxPerFrame;
       const lx = lanes[sq.lane].x;
       ctx.fillStyle = colors[sq.lane];
-      const w = squareSize, h = squareSize*1.2;
+      const w = squareSize, h = squareSize * 1.2;
       ctx.beginPath();
       ctx.moveTo(lx, sq.y);
       ctx.lineTo(lx - w/2, sq.y + h*0.4);
@@ -207,35 +208,40 @@
       ctx.closePath();
       ctx.fill();
     });
+    // cleanup
+    for(let i=squares.length-1;i>=0;i--) if(squares[i].y>canvas.height) squares.splice(i,1);
 
-    // cleanup off-screen
-    for (let i=squares.length-1;i>=0;i--){
-      if (squares[i].y>canvas.height) squares.splice(i,1);
-    }
-
-    // draw effects
     const dt = 1/fps;
-    for (let i=effects.length-1;i>=0;i--){
-      const g = effects[i];
-      const alpha = g.t/flashDur;
+    // draw effects
+    effects.forEach((g,gi)=>{
+      const alpha = g.t / flashDur;
       const lx = lanes[g.lane].x;
-      // white flash
-      ctx.save(); ctx.globalAlpha = alpha;
-      ctx.fillStyle = '#fff';
+      // flash
+      ctx.save(); ctx.globalAlpha = alpha; ctx.fillStyle='#fff';
       ctx.fillRect(lx - squareSize/2, hitZoneY, squareSize, squareSize);
       ctx.restore();
       g.t -= dt;
       // particles
       g.pieces.forEach(p=>{
         p.x += p.vx*dt; p.y += p.vy*dt; p.t -= dt;
-        ctx.save(); ctx.globalAlpha = p.t/particleLife;
-        ctx.fillStyle = colors[p.ci];
-        ctx.fillRect(p.x-3,p.y-3,6,6);
+        ctx.save(); ctx.globalAlpha = p.t/particleLife; ctx.fillStyle = colors[p.ci];
+        ctx.fillRect(p.x-3, p.y-3, 6,6);
         ctx.restore();
       });
       g.pieces = g.pieces.filter(p=>p.t>0);
-      if (g.t<=0 && g.pieces.length===0) effects.splice(i,1);
-    }
+      if(g.t<=0 && g.pieces.length===0) effects.splice(gi,1);
+    });
+
+    // draw accuracy texts
+    texts.forEach((tx,ti)=>{
+      const alpha = tx.t/textDur;
+      ctx.save(); ctx.globalAlpha = alpha; ctx.fillStyle = '#fff';
+      ctx.font = '20px sans-serif'; ctx.textAlign='center';
+      ctx.fillText(tx.text, tx.x, tx.y);
+      ctx.restore();
+      tx.t -= dt;
+      if(tx.t<=0) texts.splice(ti,1);
+    });
 
     requestAnimationFrame(draw);
   }
