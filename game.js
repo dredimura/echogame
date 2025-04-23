@@ -1,24 +1,38 @@
+// grab the canvas and context
 const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-const squares = [];
-let score = 0;
-const hitZoneY = canvas.height - 100;
+const ctx    = canvas.getContext('2d');
+
+// game state
+const squares    = [];
+let score        = 0;
+const hitZoneY   = canvas.height - 100;
 const squareSize = 50;
-const bpm = 120;
-const beatInterval = 60 / bpm;  // seconds per beat
-const travelBeats = 2;          // number of beats squares travel before reaching hit zone
-const travelTime = beatInterval * travelBeats;  // time to fall
-const pixelsPerFrame = (hitZoneY + squareSize) / (travelTime * 60);  // assuming ~60fps
 
-const synth = new Tone.MembraneSynth().toDestination();
+// timing (adjust bpm to match your song)
+const bpm          = 120;
+const beatInterval = 60 / bpm;        // seconds per beat
+const travelBeats  = 2;               // how many beats the square falls
+const travelTime   = beatInterval * travelBeats;
+const pixelsPerFrame = (hitZoneY + squareSize) / (travelTime * 60);
 
+// load your song (must be uploaded as mysong.mp3)
+const player = new Tone.Player({
+  url: 'mysong.mp3',
+  autostart: false,
+  loop: false
+}).toDestination();
+
+// start button handler
 document.getElementById('startButton').addEventListener('click', async () => {
-  await Tone.start();
+  await Tone.start();      // unlock audio
+  player.start(0);         // play your track immediately
   Tone.Transport.bpm.value = bpm;
+
+  // schedule a square every quarter-note
   Tone.Transport.scheduleRepeat((time) => {
     squares.push({ y: -squareSize });
-    synth.triggerAttackRelease('C2', '8n', time);
   }, '4n');
+
   Tone.Transport.start();
   document.getElementById('startButton').style.display = 'none';
   requestAnimationFrame(draw);
@@ -27,16 +41,26 @@ document.getElementById('startButton').addEventListener('click', async () => {
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Draw hit zone
+  // draw the hit zone
   ctx.strokeStyle = '#fff';
-  ctx.strokeRect((canvas.width - squareSize) / 2, hitZoneY, squareSize, squareSize);
+  ctx.strokeRect(
+    (canvas.width - squareSize) / 2,
+    hitZoneY,
+    squareSize,
+    squareSize
+  );
 
-  // Update and draw squares
+  // move & draw each square
   for (let i = squares.length - 1; i >= 0; i--) {
     squares[i].y += pixelsPerFrame;
     ctx.fillStyle = '#0ff';
-    ctx.fillRect((canvas.width - squareSize) / 2, squares[i].y, squareSize, squareSize);
-    // Remove off-screen
+    ctx.fillRect(
+      (canvas.width - squareSize) / 2,
+      squares[i].y,
+      squareSize,
+      squareSize
+    );
+    // remove if it falls past the bottom
     if (squares[i].y > canvas.height) {
       squares.splice(i, 1);
     }
@@ -45,6 +69,7 @@ function draw() {
   requestAnimationFrame(draw);
 }
 
+// hit detection on Spacebar
 window.addEventListener('keydown', (e) => {
   if (e.code === 'Space') {
     for (let i = squares.length - 1; i >= 0; i--) {
