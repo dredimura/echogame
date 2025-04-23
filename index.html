@@ -1,10 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
+  <!-- 1) Ensure proper scaling on mobile -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <title>Rhythm Tap Game</title>
 
-  <!-- Tone.js (must load before game.js) -->
+  <!-- 2) Load Tone.js before your game code -->
   <script src="https://cdn.jsdelivr.net/npm/tone@14.7.77/build/Tone.min.js"></script>
 
   <style>
@@ -29,23 +32,24 @@
       left: 50%;
       transform: translate(-50%, -50%);
       font-size: 24px;
-      pointer-events: none;
       color: #ccc;
+      pointer-events: none;
     }
     canvas {
       display: block;
       margin: 0 auto;
       background: #222;
-      touch-action: none; /* prevent scrolling while tapping */
+      /* 3) Prevent scroll/zoom on touch */
+      touch-action: none;
     }
   </style>
 </head>
 <body>
   <div id="score">Score: 0</div>
-  <div id="message">Tap or Click to Start</div>
+  <div id="message">Tap to Start</div>
   <canvas id="gameCanvas" width="400" height="600"></canvas>
 
-  <!-- your game logic -->
+  <!-- 4) Your game logic -->
   <script src="game.js"></script>
 </body>
 </html>
