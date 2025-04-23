@@ -6,8 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rhythm Tap Game</title>
   <style>
-    body {
-      margin: 0;
+    html, body {
+      margin: 0; padding: 0;
+      width: 100%; height: 100%;
       overflow: hidden;
       background: #111;
       color: #fff;
@@ -15,26 +16,24 @@
     }
     #score {
       position: absolute;
-      top: 10px;
-      left: 50%;
+      top: 10px; left: 50%;
       transform: translateX(-50%);
       font-size: 20px;
       pointer-events: none;
     }
     #message {
       position: absolute;
-      top: 50%;
-      left: 50%;
+      top: 50%; left: 50%;
       transform: translate(-50%, -50%);
       font-size: 24px;
       color: #ccc;
       pointer-events: none;
     }
     canvas {
-      display: block;
-      margin: 0 auto;
-      background: #222;
-      touch-action: none; /* prevent scrolling/zoom on tap */
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      touch-action: none; /* disable scrolling on tap */
     }
   </style>
 </head>
@@ -42,12 +41,11 @@
   <div id="score">Score: 0</div>
   <div id="message">Tap to Start</div>
 
-  <!-- HTML5 audio for your track (make sure mysong.mp3 is in the same folder) -->
+  <!-- your song; make sure this file is alongside index.html & game.js -->
   <audio id="gameAudio" src="mysong.mp3" preload="auto"></audio>
 
-  <canvas id="gameCanvas" width="400" height="600"></canvas>
+  <canvas id="gameCanvas"></canvas>
 
-  <!-- Load the game logic -->
   <script src="game.js"></script>
 </body>
 </html>
