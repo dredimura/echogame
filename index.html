@@ -7,69 +7,66 @@
   <title>Rhythm Tap Game</title>
   <style>
     html, body {
-      margin:0; padding:0;
-      width:100%; height:100%;
-      overflow:hidden;
-      background:#111; color:#fff;
-      font-family:sans-serif;
+      margin: 0; padding: 0;
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: #111; color: #fff;
+      font-family: sans-serif;
     }
     /* Score and percent */
     #score, #percent {
-      position:absolute; top:10px;
-      left:50%; transform:translateX(-50%);
-      font-size:20px; pointer-events:none;
-      z-index:10;
+      position: absolute; left: 50%;
+      transform: translateX(-50%);
+      pointer-events: none; z-index: 10;
     }
-    #percent {
-      top:40px;
-      font-size:16px;
-    }
+    #score { top: 10px; font-size: 20px; }
+    #percent { top: 40px; font-size: 16px; }
     /* pop animation */
     #score.pop {
       animation: pop 0.3s ease-out;
     }
     @keyframes pop {
-      0%   { transform:translateX(-50%) scale(1); }
-      50%  { transform:translateX(-50%) scale(1.4); }
-      100% { transform:translateX(-50%) scale(1); }
+      0%   { transform: translateX(-50%) scale(1); }
+      50%  { transform: translateX(-50%) scale(1.4); }
+      100% { transform: translateX(-50%) scale(1); }
     }
     /* start message */
     #message {
-      position:absolute;
-      top:50%; left:50%;
-      transform:translate(-50%,-50%);
-      font-size:24px; color:#ccc;
-      pointer-events:none; z-index:10;
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 24px; color: #ccc;
+      pointer-events: none; z-index: 10;
     }
     /* pause button */
     #pauseButton {
-      position:absolute; top:10px; right:10px;
-      padding:6px 12px; background:#222;
-      color:#fff; border:1px solid #555;
-      border-radius:4px; font-size:14px;
-      display:none; z-index:10;
+      position: absolute; top: 10px; right: 10px;
+      padding: 6px 12px; background: #222;
+      color: #fff; border: 1px solid #555;
+      border-radius: 4px; font-size: 14px;
+      display: none; z-index: 10;
     }
     /* full-screen canvas */
     canvas {
-      position:absolute; top:0; left:0;
-      width:100%; height:100%;
-      touch-action:none;
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
+      touch-action: none;
     }
     /* leaderboard overlay */
     #leaderboardOverlay {
-      position:absolute; top:0; left:0;
-      width:100%; height:100%;
-      background:rgba(0,0,0,0.8);
-      display:none; color:#fff; z-index:20;
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.8);
+      display: none; color: #fff; z-index: 20;
     }
     #leaderboardContent {
-      position:absolute;
-      top:50%; left:50%;
-      transform:translate(-50%,-50%);
-      text-align:center;
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
     }
-    #leaderboardContent input { font-size:18px; text-transform:uppercase; width:60px; }
-    #leaderboardContent button { margin:8px; padding:6px 12px; }
+    #leaderboardContent input { font-size: 18px; text-transform: uppercase; width: 60px; }
+    #leaderboardContent button { margin: 8px; padding: 6px 12px; }
   </style>
 </head>
 <body>
@@ -98,6 +95,7 @@
     </div>
   </div>
 
-  <script src="game.js"></script>
+  <!-- cache-busted game script -->
+  <script src="game.js?ver=2"></script>
 </body>
 </html>
