@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>Rhythm Flash-Style Game</title>
 
-  <!-- load Tone.js from jsDelivr -->
+  <!-- 1) Load Tone.js first -->
   <script src="https://cdn.jsdelivr.net/npm/tone@14.7.77/build/Tone.min.js"></script>
 
   <style>
@@ -35,12 +35,13 @@
     }
   </style>
 </head>
+
 <body>
   <button id="startButton">Start Game</button>
   <div id="score">Score: 0</div>
   <canvas id="gameCanvas" width="400" height="600"></canvas>
 
-  <!-- your game logic -->
+  <!-- 2) Then load your game code -->
   <script src="game.js"></script>
 </body>
 </html>
