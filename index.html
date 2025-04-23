@@ -4,44 +4,21 @@
   <meta charset="UTF-8">
   <title>Rhythm Flash-Style Game</title>
 
-  <!-- 1) Load Tone.js first -->
+  <!-- load Tone.js from jsDelivr -->
   <script src="https://cdn.jsdelivr.net/npm/tone@14.7.77/build/Tone.min.js"></script>
 
   <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-      background: #111;
-      color: #fff;
-      font-family: sans-serif;
-    }
-    #startButton {
-      position: absolute;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 10px 20px;
-    }
-    #score {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      font-size: 18px;
-    }
-    canvas {
-      display: block;
-      margin: 0 auto;
-      background: #222;
-    }
+    body { margin: 0; overflow: hidden; background: #111; color: #fff; font-family: sans-serif; }
+    #startButton { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); padding: 10px 20px; }
+    #score { position: absolute; top: 20px; right: 20px; font-size: 18px; }
+    canvas { display: block; margin: 0 auto; background: #222; }
   </style>
 </head>
-
 <body>
   <button id="startButton">Start Game</button>
   <div id="score">Score: 0</div>
   <canvas id="gameCanvas" width="400" height="600"></canvas>
 
-  <!-- 2) Then load your game code -->
   <script src="game.js"></script>
 </body>
 </html>
