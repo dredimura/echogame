@@ -2,25 +2,27 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- Mobile viewport -->
+  <!-- ensure mobile scaling -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rhythm Tap Game</title>
   <style>
     html, body {
-      margin:0; padding:0;
-      width:100%; height:100%;
-      overflow:hidden;
-      background:#111;
-      color:#fff;
-      font-family:sans-serif;
+      margin: 0; padding: 0;
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: #111;
+      color: #fff;
+      font-family: sans-serif;
     }
     #score {
-      position:absolute; top:10px; left:50%;
-      transform:translateX(-50%);
-      font-size:20px;
-      pointer-events:none;
+      position: absolute;
+      top: 10px; left: 50%;
+      transform: translateX(-50%);
+      font-size: 20px;
+      pointer-events: none;
     }
-    #score.score-pop {
+    /* pop animation */
+    #score.pop {
       animation: pop 0.3s ease-out;
     }
     @keyframes pop {
@@ -29,26 +31,28 @@
       100% { transform: translateX(-50%) scale(1); }
     }
     #message {
-      position:absolute;
-      top:50%; left:50%;
-      transform:translate(-50%,-50%);
-      font-size:24px;
-      color:#ccc;
-      pointer-events:none;
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 24px;
+      color: #ccc;
+      pointer-events: none;
     }
     #pauseButton {
-      position:absolute; top:10px; right:10px;
-      padding:6px 12px;
-      background:#222; color:#fff;
-      border:1px solid #555;
-      border-radius:4px;
-      font-size:14px;
-      z-index:10;
+      position: absolute;
+      top: 10px; right: 10px;
+      padding: 6px 12px;
+      background: #222; color: #fff;
+      border: 1px solid #555; border-radius: 4px;
+      font-size: 14px;
+      display: none;        /* hidden until game starts */
+      z-index: 10;
     }
     canvas {
-      position:absolute; top:0; left:0;
-      width:100%; height:100%;
-      touch-action:none;
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      touch-action: none;    /* disable scroll on touch */
     }
   </style>
 </head>
@@ -57,7 +61,7 @@
   <button id="pauseButton">Pause</button>
   <div id="message">Tap to Start</div>
 
-  <!-- your track -->
+  <!-- your track (must be alongside these files) -->
   <audio id="gameAudio" src="mysong.mp3" preload="auto"></audio>
 
   <canvas id="gameCanvas"></canvas>
