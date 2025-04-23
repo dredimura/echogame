@@ -10,16 +10,27 @@
       margin: 0; padding: 0;
       width: 100%; height: 100%;
       overflow: hidden;
-      background: #111; color: #fff;
+      background: #111;
+      color: #fff;
       font-family: sans-serif;
     }
-    #score, #percent {
-      position: absolute; left: 50%;
+
+    /* Score, percent & multiplier styling */
+    #score, #percent, #multiplier {
+      position: absolute;
+      left: 50%;
       transform: translateX(-50%);
-      pointer-events: none; z-index: 10;
+      background: rgba(0,0,0,0.6);
+      padding: 4px 8px;
+      border-radius: 4px;
+      pointer-events: none;
+      z-index: 10;
     }
     #score { top: 10px; font-size: 20px; }
     #percent { top: 40px; font-size: 16px; }
+    #multiplier { top: 70px; font-size: 16px; }
+
+    /* pop animation */
     #score.pop {
       animation: pop 0.3s ease-out;
     }
@@ -28,12 +39,17 @@
       50%  { transform: translateX(-50%) scale(1.4); }
       100% { transform: translateX(-50%) scale(1); }
     }
+
+    /* start message */
     #message {
-      position: absolute; top: 50%; left: 50%;
+      position: absolute;
+      top: 50%; left: 50%;
       transform: translate(-50%, -50%);
       font-size: 24px; color: #ccc;
       pointer-events: none; z-index: 10;
     }
+
+    /* pause button */
     #pauseButton {
       position: absolute; top: 10px; right: 10px;
       padding: 6px 12px; background: #222;
@@ -41,11 +57,15 @@
       border-radius: 4px; font-size: 14px;
       display: none; z-index: 10;
     }
+
+    /* full-screen canvas */
     canvas {
       position: absolute; top: 0; left: 0;
       width: 100%; height: 100%;
       touch-action: none;
     }
+
+    /* leaderboard overlay */
     #leaderboardOverlay {
       position: absolute; top: 0; left: 0;
       width: 100%; height: 100%;
@@ -58,19 +78,30 @@
       transform: translate(-50%, -50%);
       text-align: center;
     }
-    #leaderboardContent input { font-size: 18px; text-transform: uppercase; width: 60px; }
-    #leaderboardContent button { margin: 8px; padding: 6px 12px; }
+    #leaderboardContent input {
+      font-size: 18px;
+      text-transform: uppercase;
+      width: 60px;
+    }
+    #leaderboardContent button {
+      margin: 8px;
+      padding: 6px 12px;
+    }
   </style>
 </head>
 <body>
   <div id="score">Score: 0</div>
   <div id="percent">0%</div>
+  <div id="multiplier">x1</div>
   <button id="pauseButton">Pause</button>
   <div id="message">Tap to Start</div>
 
+  <!-- your track -->
   <audio id="gameAudio" src="mysong.mp3" preload="auto"></audio>
+
   <canvas id="gameCanvas"></canvas>
 
+  <!-- Leaderboard overlay -->
   <div id="leaderboardOverlay">
     <div id="leaderboardContent">
       <h2>Game Over</h2>
@@ -85,7 +116,7 @@
     </div>
   </div>
 
-  <!-- cache-busted game script (version 7) -->
-  <script src="game.js?ver=7"></script>
+  <!-- cache-busted game script (version 8) -->
+  <script src="game.js?ver=8"></script>
 </body>
 </html>
