@@ -1,9 +1,9 @@
 // ---- Setup & State ----
-const canvas     = document.getElementById('gameCanvas');
-const ctx        = canvas.getContext('2d');
-const scoreDiv   = document.getElementById('score');
-const msgDiv     = document.getElementById('message');
-const audio      = document.getElementById('gameAudio');
+const canvas      = document.getElementById('gameCanvas');
+const ctx         = canvas.getContext('2d');
+const scoreDiv    = document.getElementById('score');
+const msgDiv      = document.getElementById('message');
+const audio       = document.getElementById('gameAudio');
 
 let started    = false;
 let score      = 0;
@@ -11,7 +11,7 @@ const squares  = [];
 const squareSize = 50;
 const hitZoneY = canvas.height - 100;
 
-// 3 lanes at 25%, 50%, 75% across the canvas
+// 3 lanes at 25%, 50%, 75%
 const lanes = [
   { x: canvas.width * 0.25 },
   { x: canvas.width * 0.50 },
@@ -20,23 +20,26 @@ const lanes = [
 
 // Timing for 135 BPM
 const bpm             = 135;
-const beatInterval    = 60 / bpm;               
-const travelBeats     = 2;                      
-const travelTime      = beatInterval * travelBeats; 
+const beatInterval    = 60 / bpm;                
+const travelBeats     = 2;                       
+const travelTime      = beatInterval * travelBeats;
 const fps             = 60;
 const pixelsPerFrame  = (hitZoneY + squareSize) / (travelTime * fps);
 
-// Spawn every 16th note = (beatInterval/4) seconds
+// Spawn every 16th note
 const spawnIntervalMs = (beatInterval * 1000) / 4;
 let spawnIntervalID   = null;
 
 // ---- Input Handling ----
-// Desktop: mousedown; Mobile: touchstart
-canvas.addEventListener('mousedown', onTap);
-canvas.addEventListener('touchstart', onTap, { passive: false });
+// Catch all the possible “tap/click” events
+['pointerdown','mousedown','touchstart','click'].forEach(evt => {
+  canvas.addEventListener(evt, onTap, { passive: false });
+});
 
 function onTap(e) {
   e.preventDefault();
+  // Uncomment to debug: 
+  // console.log('onTap fired via', e.type);
   if (!started) {
     startGame();
   } else {
@@ -49,23 +52,19 @@ function startGame() {
   started = true;
   msgDiv.style.display = 'none';
 
-  // 1) Play audio (HTML5)
+  // Play your song
   audio.currentTime = 0;
-  audio.play().catch(err => {
-    console.log('Audio play failed:', err);
-  });
+  audio.play().catch(err => console.log('Audio play error:', err));
 
-  // 2) Spawn one square immediately so you see something
+  // Immediate visual feedback
   spawnSquare();
 
-  // 3) Then start random spawns
+  // Then regular random spawns
   spawnIntervalID = setInterval(spawnSquare, spawnIntervalMs);
 
-  // 4) Kick off render loop
   requestAnimationFrame(draw);
 }
 
-// Helper to spawn a square in a random lane
 function spawnSquare() {
   if (Math.random() < 0.5) {
     const laneIndex = Math.floor(Math.random() * lanes.length);
@@ -100,20 +99,30 @@ function handleHit(e) {
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // draw hit-zones
+  // Draw hit zones
   ctx.strokeStyle = '#555';
   lanes.forEach(lane => {
-    ctx.strokeRect(lane.x - squareSize/2, hitZoneY, squareSize, squareSize);
+    ctx.strokeRect(
+      lane.x - squareSize/2,
+      hitZoneY,
+      squareSize,
+      squareSize
+    );
   });
 
-  // update & draw squares
+  // Move & draw squares
   for (let i = squares.length - 1; i >= 0; i--) {
     const sq = squares[i];
     sq.y += pixelsPerFrame;
     const laneX = lanes[sq.lane].x;
 
     ctx.fillStyle = '#0ff';
-    ctx.fillRect(laneX - squareSize/2, sq.y, squareSize, squareSize);
+    ctx.fillRect(
+      laneX - squareSize/2,
+      sq.y,
+      squareSize,
+      squareSize
+    );
 
     if (sq.y > canvas.height) {
       squares.splice(i, 1);
