@@ -15,8 +15,8 @@
       font-family: sans-serif;
     }
 
-    /* Score, percent & multiplier */
-    #score, #percent, #multiplier {
+    /* Score, percent, multiplier & streak */
+    #score, #percent, #multiplier, #streak {
       position: absolute;
       left: 50%;
       transform: translateX(-50%);
@@ -26,9 +26,10 @@
       pointer-events: none;
       z-index: 10;
     }
-    #score { top: 10px; font-size: 20px; }
-    #percent { top: 40px; font-size: 16px; }
+    #score      { top: 10px; font-size: 20px; }
+    #percent    { top: 40px; font-size: 16px; }
     #multiplier { top: 70px; font-size: 16px; }
+    #streak     { top:100px; font-size: 16px; }
 
     /* pop animation */
     #score.pop {
@@ -79,13 +80,10 @@
       text-align: center;
     }
     #leaderboardContent input {
-      font-size: 18px;
-      text-transform: uppercase;
-      width: 60px;
+      font-size: 18px; text-transform: uppercase; width: 60px;
     }
     #leaderboardContent button {
-      margin: 8px;
-      padding: 6px 12px;
+      margin: 8px; padding: 6px 12px;
     }
   </style>
 </head>
@@ -93,6 +91,7 @@
   <div id="score">Score: 0</div>
   <div id="percent">0%</div>
   <div id="multiplier">x1</div>
+  <div id="streak">Streak: 0</div>
   <button id="pauseButton">Pause</button>
   <div id="message">Tap to Start</div>
 
@@ -114,7 +113,7 @@
     </div>
   </div>
 
-  <!-- cache-busted game script (version 8) -->
-  <script src="game.js?ver=8"></script>
+  <!-- cache-busted game script (version 9) -->
+  <script src="game.js?ver=9"></script>
 </body>
 </html>
