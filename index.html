@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Rhythm Flash-Style Game</title>
+  <meta charset="UTF-8" />
+  <title>Rhythm Tap Game</title>
 
-  <!-- Tone.js -->
+  <!-- Tone.js (must load before game.js) -->
   <script src="https://cdn.jsdelivr.net/npm/tone@14.7.77/build/Tone.min.js"></script>
 
   <style>
@@ -27,7 +27,7 @@
       position: absolute;
       top: 50%;
       left: 50%;
-      transform: translate(-50%,-50%);
+      transform: translate(-50%, -50%);
       font-size: 24px;
       pointer-events: none;
       color: #ccc;
@@ -36,15 +36,16 @@
       display: block;
       margin: 0 auto;
       background: #222;
-      touch-action: none; /* prevent scrolling on tap */
+      touch-action: none; /* prevent scrolling while tapping */
     }
   </style>
 </head>
 <body>
   <div id="score">Score: 0</div>
-  <div id="message">Tap to Start</div>
+  <div id="message">Tap or Click to Start</div>
   <canvas id="gameCanvas" width="400" height="600"></canvas>
 
+  <!-- your game logic -->
   <script src="game.js"></script>
 </body>
 </html>
