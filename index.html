@@ -11,6 +11,12 @@
   <title>Rhythm Tap Game</title>
   <style>
     html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#111; color:#fff; font-family:sans-serif; }
+    /* Song title */
+    #title {
+      position:absolute; top:10px; left:10px;
+      background:rgba(0,0,0,0.6); padding:4px 8px; border-radius:4px;
+      font-size:14px; line-height:1.2; pointer-events:none; z-index:10;
+    }
     #score,#percent,#multiplier,#streak {
       position:absolute; left:50%; transform:translateX(-50%);
       background:rgba(0,0,0,0.6); padding:4px 8px; border-radius:4px;
@@ -36,6 +42,10 @@
   </style>
 </head>
 <body>
+  <div id="title">
+    Dre DiMura<br>
+    echo//kill
+  </div>
   <div id="score">Score: 0</div>
   <div id="percent">0%</div>
   <div id="multiplier">x1</div>
@@ -60,7 +70,7 @@
     </div>
   </div>
 
-  <!-- bumped to v14 -->
-  <script src="game.js?ver=14"></script>
+  <!-- v16 -->
+  <script src="game.js?ver=16"></script>
 </body>
 </html>
