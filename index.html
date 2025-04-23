@@ -4,19 +4,45 @@
   <meta charset="UTF-8">
   <title>Rhythm Flash-Style Game</title>
 
-  <!-- load Tone.js from jsDelivr -->
+  <!-- Tone.js -->
   <script src="https://cdn.jsdelivr.net/npm/tone@14.7.77/build/Tone.min.js"></script>
 
   <style>
-    body { margin: 0; overflow: hidden; background: #111; color: #fff; font-family: sans-serif; }
-    #startButton { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); padding: 10px 20px; }
-    #score { position: absolute; top: 20px; right: 20px; font-size: 18px; }
-    canvas { display: block; margin: 0 auto; background: #222; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #111;
+      color: #fff;
+      font-family: sans-serif;
+    }
+    #score {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 20px;
+      pointer-events: none;
+    }
+    #message {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%,-50%);
+      font-size: 24px;
+      pointer-events: none;
+      color: #ccc;
+    }
+    canvas {
+      display: block;
+      margin: 0 auto;
+      background: #222;
+      touch-action: none; /* prevent scrolling on tap */
+    }
   </style>
 </head>
 <body>
-  <button id="startButton">Start Game</button>
   <div id="score">Score: 0</div>
+  <div id="message">Tap to Start</div>
   <canvas id="gameCanvas" width="400" height="600"></canvas>
 
   <script src="game.js"></script>
