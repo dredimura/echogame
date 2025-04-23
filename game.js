@@ -1,328 +1,284 @@
 (() => {
-  // Elements
-  const canvas      = document.getElementById('gameCanvas');
-  const ctx         = canvas.getContext('2d');
-  const scoreEl     = document.getElementById('score');
-  const percentEl   = document.getElementById('percent');
-  const multiEl     = document.getElementById('multiplier');
-  const msgEl       = document.getElementById('message');
-  const pauseBtn    = document.getElementById('pauseButton');
-  const audio       = document.getElementById('gameAudio');
-  const overlay     = document.getElementById('leaderboardOverlay');
-  const finalScoreP = document.getElementById('finalScore');
-  const initialsIn  = document.getElementById('initials');
-  const submitBtn   = document.getElementById('submitScore');
-  const boardList   = document.getElementById('leaderboardList');
-  const closeBtn    = document.getElementById('closeLeaderboard');
+  const canvas   = document.getElementById('gameCanvas');
+  const ctx      = canvas.getContext('2d');
+  const scoreEl  = document.getElementById('score');
+  const percentEl= document.getElementById('percent');
+  const multEl   = document.getElementById('multiplier');
+  const msgEl    = document.getElementById('message');
+  const pauseBtn = document.getElementById('pauseButton');
+  const audio    = document.getElementById('gameAudio');
+  const overlay  = document.getElementById('leaderboardOverlay');
+  const finalP   = document.getElementById('finalScore');
+  const initials = document.getElementById('initials');
+  const submit   = document.getElementById('submitScore');
+  const listEl   = document.getElementById('leaderboardList');
+  const closeBtn = document.getElementById('closeLeaderboard');
 
-  // State
-  let started      = false;
-  let paused       = false;
-  let score        = 0;
-  let totalNotes   = 0;
-  let spawnID      = null;
-  let multiplier   = 1;
-  const squares    = [];
-  const effects    = [];
-  const texts      = [];
-  const squareSize = 50;
+  let started=false, paused=false;
+  let score=0, totalNotes=0, spawnID=null;
+  let combo=1;
+  const squares=[], effects=[], texts=[];
+  const sqSz=50;
 
-  // Timings
-  const flashDur     = 0.1;
-  const particleLife = 0.5;
-  const textDur      = 0.5;
+  const flashDur=0.1, partLife=0.5, txtLife=0.5;
 
-  // Resize & lane positions
-  let hitZoneY;
-  const lanes = [{x:0},{x:0},{x:0}];
-  function resize() {
-    canvas.width  = window.innerWidth;
-    canvas.height = window.innerHeight;
-    hitZoneY      = canvas.height - 100;
-    lanes[0].x = canvas.width * 0.25;
-    lanes[1].x = canvas.width * 0.50;
-    lanes[2].x = canvas.width * 0.75;
+  let hitY;
+  const lanes=[{x:0},{x:0},{x:0}];
+  function resize(){
+    canvas.width=window.innerWidth;
+    canvas.height=window.innerHeight;
+    hitY=canvas.height-100;
+    lanes[0].x=canvas.width*0.25;
+    lanes[1].x=canvas.width*0.50;
+    lanes[2].x=canvas.width*0.75;
   }
-  window.addEventListener('resize', resize);
+  window.addEventListener('resize',resize);
   resize();
 
-  // Tempo
-  const bpm        = 135;
-  const beatSec    = 60 / bpm;
-  const travelSec  = beatSec * 2;
-  const fps        = 60;
-  const pxPerFrame = (hitZoneY + squareSize) / (travelSec * fps);
-  const spawnMs    = (beatSec * 1000) / 4;
+  const bpm=135, beat=60/bpm, travel=beat*2;
+  const fps=60;
+  const dy=(hitY+sqSz)/(travel*fps);
+  const spawnMs=(beat*1000)/4;
 
-  // Lane colors
-  const colors = ['#0ff','#f0f','#0f0'];
+  const colors=['#0ff','#f0f','#0f0'];
 
-  // Input handling
-  canvas.addEventListener('pointerdown', e => {
+  function onTap(e){
     e.preventDefault();
-    if (!started) startGame();
-    else if (!paused) {
-      const hit = handleHit(e);
-      if (!hit) resetMultiplier();       // ghost tap resets combo
+    if(!started) start();
+    else if(!paused){
+      const hit=handle(e);
+      if(!hit) resetCombo();
     }
-  }, { passive: false });
+  }
+  canvas.addEventListener('pointerdown',onTap,{passive:false});
+  canvas.addEventListener('touchstart', onTap,{passive:false});
+  canvas.addEventListener('mousedown',   onTap);
 
-  // Start the game
-  function startGame() {
-    started = true;
-    paused  = false;
-    score   = 0;
-    totalNotes = 0;
-    multiplier = 1;
-    scoreEl.textContent   = 'Score: 0';
-    percentEl.textContent = '0%';
-    multiEl.textContent   = 'x1';
-    msgEl.style.display   = 'none';
-    pauseBtn.style.display= 'block';
-    audio.currentTime = 0;
-    audio.play().catch(console.warn);
-    audio.addEventListener('ended', onGameEnd);
-    spawnSquare();
-    spawnID = setInterval(spawnSquare, spawnMs);
+  function start(){
+    started=true; paused=false; score=0; totalNotes=0; combo=1;
+    scoreEl.textContent='Score: 0';
+    percentEl.textContent='0%';
+    multEl.textContent='x1';
+    msgEl.style.display='none';
+    pauseBtn.style.display='block';
+    audio.currentTime=0; audio.play().catch(console.warn);
+    audio.addEventListener('ended',end);
+    spawn(); spawnID=setInterval(spawn,spawnMs);
     requestAnimationFrame(draw);
   }
 
-  // Pause / Resume
-  pauseBtn.addEventListener('click', e => {
+  pauseBtn.addEventListener('click',e=>{
     e.stopPropagation();
-    if (!started) return;
-    paused = !paused;
-    if (paused) {
-      audio.pause();
-      clearInterval(spawnID);
-      pauseBtn.textContent = 'Resume';
+    if(!started) return;
+    paused=!paused;
+    if(paused){
+      audio.pause(); clearInterval(spawnID); pauseBtn.textContent='Resume';
     } else {
       audio.play().catch(console.warn);
-      spawnID = setInterval(spawnSquare, spawnMs);
-      pauseBtn.textContent = 'Pause';
+      spawnID=setInterval(spawn,spawnMs);
+      pauseBtn.textContent='Pause';
       requestAnimationFrame(draw);
     }
   });
 
-  // Stop spawning after end
-  function onGameEnd() {
-    started = false;
+  function end(){
+    started=false;
     clearInterval(spawnID);
-    finalScoreP.textContent = `Score: ${score} (${percentEl.textContent})`;
-    loadLeaderboard();
-    overlay.style.display = 'block';
+    finalP.textContent=`Score: ${score} (${percentEl.textContent})`;
+    showBoard();
+    overlay.style.display='block';
   }
 
-  // Spawn notes randomly
-  function spawnSquare() {
-    if (!started) return;
-    if (Math.random() < 0.5) {
-      squares.push({ y: -squareSize, lane: Math.floor(Math.random()*3) });
-      totalNotes++;
-      updatePercent();
+  function spawn(){
+    if(!started) return;
+    if(Math.random()<0.5){
+      squares.push({y:-sqSz,lane:Math.floor(Math.random()*3)});
+      totalNotes++; updatePercent();
     }
   }
 
-  // Handle taps
-  function handleHit(e) {
-    const rect = canvas.getBoundingClientRect();
-    const x    = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-    const tol  = 30;
-
-    for (let i = squares.length - 1; i >= 0; i--) {
-      const sq = squares[i];
-      const lx = lanes[sq.lane].x;
-
-      if (
-        x >= lx - squareSize/2 - tol &&
-        x <= lx + squareSize/2 + tol &&
-        sq.y >= hitZoneY - tol &&
-        sq.y <= hitZoneY + squareSize + tol
-      ) {
-        // HIT!
+  function handle(e){
+    const r=canvas.getBoundingClientRect();
+    const x=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
+    const tol=30;
+    for(let i=squares.length-1;i>=0;i--){
+      const sq=squares[i], lx=lanes[sq.lane].x;
+      if(
+        x>=lx-sqSz/2-tol &&
+        x<=lx+sqSz/2+tol &&
+        sq.y>=hitY-tol &&
+        sq.y<=hitY+sqSz+tol
+      ){
         squares.splice(i,1);
+        const diff=Math.abs(sq.y-hitY);
+        let acc,pts;
+        if(diff<5)       { acc='Perfect';   pts=100; }
+        else if(diff<15) { acc='Excellent'; pts=80;  }
+        else if(diff<30) { acc='Great';     pts=50;  }
+        else if(diff<45) { acc='Good';      pts=20;  }
+        else             { acc='Ok';        pts=10;  }
 
-        // Accuracy tiers
-        const diff = Math.abs(sq.y - hitZoneY);
-        let acc, pts;
-        if (diff < 5)        { acc = 'Perfect';    pts = 100; }
-        else if (diff < 15)  { acc = 'Excellent';  pts = 80;  }
-        else if (diff < 30)  { acc = 'Great';      pts = 50;  }
-        else if (diff < 45)  { acc = 'Good';       pts = 20;  }
-        else                 { acc = 'Ok';         pts = 10;  }
-
-        // Apply multiplier
-        score += pts * multiplier;
-        scoreEl.textContent = `Score: ${score}`;
+        score += pts * combo;
+        scoreEl.textContent=`Score: ${score}`;
         scoreEl.classList.add('pop');
         scoreEl.addEventListener('animationend',
-          () => scoreEl.classList.remove('pop'),
-          { once: true }
+          ()=>scoreEl.classList.remove('pop'),
+          {once:true}
         );
 
-        // Next combo
-        multiplier++;
-        multiEl.textContent = `x${multiplier}`;
+        combo++;
+        multEl.textContent=`x${combo}`;
 
         updatePercent();
-        triggerEffects(sq.lane, lx, hitZoneY + squareSize/2);
-
-        // Show accuracy text
-        texts.push({ text: acc, x: lx, y: hitZoneY - 20, t: textDur });
+        trigger(sq.lane,lx,hitY+sqSz/2);
+        texts.push({text:acc,x:lx,y:hitY-20,t:txtLife});
         return true;
       }
     }
-    return false; // ghost tap
+    return false;
   }
 
-  // Reset combo
-  function resetMultiplier() {
-    multiplier = 1;
-    multiEl.textContent = 'x1';
+  function resetCombo(){
+    combo=1;
+    multEl.textContent='x1';
   }
 
-  // Update percentage
-  function updatePercent() {
+  function updatePercent(){
     const pct = totalNotes
-      ? Math.round((score / (totalNotes * 100)) * 100)
+      ? Math.round((score/(totalNotes*100))*100)
       : 0;
-    percentEl.textContent = `${pct}%`;
+    percentEl.textContent=`${pct}%`;
   }
 
-  // Leaderboard
-  function loadLeaderboard() {
-    const board = JSON.parse(localStorage.getItem('leaderboard')||'[]');
-    boardList.innerHTML = '';
-    board.slice(0,5).forEach(r => {
-      const li = document.createElement('li');
-      li.textContent = `${r.initials} - ${r.score} (${r.percent}%)`;
-      boardList.appendChild(li);
+  function showBoard(){
+    // artificial entries
+    const art = [
+      {initials:'ALX',score:500, percent:'50%'},
+      {initials:'BRN',score:650, percent:'65%'},
+      {initials:'CER',score:800, percent:'80%'}
+    ];
+    const pPct = parseInt(percentEl.textContent,10);
+    let board = [...art];
+    // insert player
+    const me = {initials:initials.value||'YOU', score, percent: percentEl.textContent};
+    if(pPct>=85) board.splice(2,0,me);
+    else         board.push(me);
+
+    // append saved
+    const saved = JSON.parse(localStorage.getItem('leaderboard')||'[]');
+    board = board.concat(saved);
+
+    // display
+    listEl.innerHTML='';
+    board.slice(0,5).forEach(r=>{
+      const li=document.createElement('li');
+      li.textContent = `${r.initials} - ${r.score} (${r.percent})`;
+      listEl.appendChild(li);
     });
   }
-  submitBtn.addEventListener('click', () => {
-    const initials = initialsIn.value.toUpperCase().slice(0,3) || '---';
-    const board = JSON.parse(localStorage.getItem('leaderboard')||'[]');
-    board.unshift({ initials, score, percent: percentEl.textContent.replace('%','') });
-    localStorage.setItem('leaderboard', JSON.stringify(board.slice(0,10)));
-    loadLeaderboard();
-  });
-  closeBtn.addEventListener('click', () => overlay.style.display='none');
 
-  // Effects: flash + particles
-  function triggerEffects(lane, cx, cy) {
-    // Remove any existing flash on that lane
-    for (let i = effects.length - 1; i >= 0; i--) {
-      if (effects[i].lane === lane) effects.splice(i,1);
+  submit.addEventListener('click',()=>{
+    const inits = initials.value.toUpperCase().slice(0,3)||'---';
+    const pct = percentEl.textContent.replace('%','');
+    const rec = {initials:inits,score,percent:`${pct}%`};
+    const saved = JSON.parse(localStorage.getItem('leaderboard')||'[]');
+    saved.unshift(rec);
+    localStorage.setItem('leaderboard', JSON.stringify(saved.slice(0,10)));
+    showBoard();
+  });
+
+  closeBtn.addEventListener('click',()=> overlay.style.display='none');
+
+  function trigger(lane,cx,cy){
+    // remove old
+    for(let i=effects.length-1;i>=0;i--){
+      if(effects[i].lane===lane) effects.splice(i,1);
     }
-    const g = { lane, t: flashDur, pieces: [] };
-    for (let j = 0; j < 8; j++) {
-      const ang = Math.random()*Math.PI*2;
-      const speed = 100 + Math.random()*100;
-      g.pieces.push({
-        x: cx, y: cy,
-        vx: Math.cos(ang)*speed,
-        vy: Math.sin(ang)*speed,
-        t: particleLife,
-        ci: lane
-      });
+    const g={lane,t:flashDur,pieces:[]};
+    for(let j=0;j<8;j++){
+      const ang=Math.random()*2*Math.PI, s=100+Math.random()*100;
+      g.pieces.push({x:cx,y:cy,vx:Math.cos(ang)*s,vy:Math.sin(ang)*s,t:partLife,ci:lane});
     }
     effects.push(g);
   }
 
-  // Main draw loop
-  function draw() {
-    if (paused) return;
+  function draw(){
+    if(paused) return;
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    // Guitar-string lines (thick→thin)
-    [4,2,1].forEach((lw,i) => {
-      ctx.strokeStyle = '#bbb';
-      ctx.lineWidth   = lw;
-      const x = lanes[i].x;
+    // strings
+    [4,2,1].forEach((lw,i)=>{
+      ctx.strokeStyle='#bbb';
+      ctx.lineWidth=lw;
+      const x=lanes[i].x;
       ctx.beginPath();
-      ctx.moveTo(x, 0);             // start at very top
-      ctx.lineTo(x, canvas.height); // full height
+      ctx.moveTo(x,0);
+      ctx.lineTo(x,canvas.height);
       ctx.stroke();
     });
 
-    // Hit-zone outlines
-    ctx.strokeStyle = '#555';
-    lanes.forEach(lane => {
-      ctx.strokeRect(lane.x - squareSize/2, hitZoneY, squareSize, squareSize);
-    });
+    // zones
+    ctx.strokeStyle='#555';
+    lanes.forEach(l=>ctx.strokeRect(l.x-sqSz/2,hitY,sqSz,sqSz));
 
-    // Draw & move picks
-    squares.forEach(sq => {
-      sq.y += pxPerFrame;
-      const lx = lanes[sq.lane].x;
-      ctx.fillStyle = colors[sq.lane];
-      const w = squareSize, h = squareSize*1.2;
+    // picks
+    squares.forEach(sq=>{
+      sq.y+=dy;
+      const lx=lanes[sq.lane].x;
+      ctx.fillStyle=colors[sq.lane];
+      const w=sqSz,h=sqSz*1.2;
       ctx.beginPath();
-      ctx.moveTo(lx, sq.y);
-      ctx.lineTo(lx - w/2, sq.y + h*0.4);
-      ctx.quadraticCurveTo(lx, sq.y + h, lx + w/2, sq.y + h*0.4);
+      ctx.moveTo(lx,sq.y);
+      ctx.lineTo(lx-w/2,sq.y+h*0.4);
+      ctx.quadraticCurveTo(lx,sq.y+h,lx+w/2,sq.y+h*0.4);
       ctx.closePath();
       ctx.fill();
     });
-
-    // Missed notes reset combo
-    for (let i = squares.length - 1; i >= 0; i--) {
-      if (squares[i].y > canvas.height) {
+    // misses
+    for(let i=squares.length-1;i>=0;i--){
+      if(squares[i].y>canvas.height){
         squares.splice(i,1);
-        resetMultiplier();
+        resetCombo();
       }
     }
 
-    // Draw effects
-    const dt = 1/fps;
-    effects.forEach((g, gi) => {
-      // white flash
-      const alpha = g.t/flashDur;
-      const lx = lanes[g.lane].x;
-      ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle   = '#fff';
-      ctx.fillRect(lx - squareSize/2, hitZoneY, squareSize, squareSize);
+    const dt=1/fps;
+    // effects
+    effects.forEach((g,gi)=>{
+      const alpha=g.t/flashDur, lx=lanes[g.lane].x;
+      ctx.save();ctx.globalAlpha=alpha;ctx.fillStyle='#fff';
+      ctx.fillRect(lx-sqSz/2,hitY,sqSz,sqSz);
       ctx.restore();
-
-      g.t -= dt;
-      // particles
-      g.pieces.forEach(p => {
-        p.x += p.vx*dt; p.y += p.vy*dt; p.t -= dt;
-        ctx.save();
-        ctx.globalAlpha = p.t/particleLife;
-        ctx.fillStyle   = colors[p.ci];
-        ctx.fillRect(p.x-3, p.y-3, 6, 6);
+      g.t-=dt;
+      g.pieces.forEach(p=>{
+        p.x+=p.vx*dt;p.y+=p.vy*dt;p.t-=dt;
+        ctx.save();ctx.globalAlpha=p.t/partLife;ctx.fillStyle=colors[p.ci];
+        ctx.fillRect(p.x-3,p.y-3,6,6);
         ctx.restore();
       });
-      g.pieces = g.pieces.filter(p => p.t>0);
-      if (g.t<=0 && g.pieces.length===0) effects.splice(gi,1);
+      g.pieces=g.pieces.filter(p=>p.t>0);
+      if(g.t<=0&&g.pieces.length===0) effects.splice(gi,1);
     });
 
-    // Accuracy texts
-    texts.forEach((tx, ti) => {
-      const alpha = tx.t/textDur;
-      ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.textAlign   = 'center';
-      ctx.font        = '20px sans-serif';
-      if (tx.text==='Perfect') {
-        const grad = ctx.createLinearGradient(tx.x-40,tx.y-10,tx.x+40,tx.y+10);
-        grad.addColorStop(0,'#ff0');
-        grad.addColorStop(1,'#fff');
-        ctx.fillStyle = grad;
-      } else if (tx.text==='Excellent') {
-        const grad = ctx.createLinearGradient(tx.x-40,tx.y-10,tx.x+40,tx.y+10);
-        grad.addColorStop(0,'#f0f');
-        grad.addColorStop(1,'#fff');
-        ctx.fillStyle = grad;
+    // texts
+    texts.forEach((tx,ti)=>{
+      const alpha=tx.t/textDur;
+      ctx.save();ctx.globalAlpha=alpha;ctx.textAlign='center';ctx.font='20px sans-serif';
+      if(tx.text==='Perfect'){
+        const grad=ctx.createLinearGradient(tx.x-40,tx.y-10,tx.x+40,tx.y+10);
+        grad.addColorStop(0,'#ff0');grad.addColorStop(1,'#fff');
+        ctx.fillStyle=grad;
+      } else if(tx.text==='Excellent'){
+        const grad=ctx.createLinearGradient(tx.x-40,tx.y-10,tx.x+40,tx.y+10);
+        grad.addColorStop(0,'#f0f');grad.addColorStop(1,'#fff');
+        ctx.fillStyle=grad;
       } else {
-        ctx.fillStyle = '#fff';
+        ctx.fillStyle='#fff';
       }
-      ctx.fillText(tx.text, tx.x, tx.y);
+      ctx.fillText(tx.text,tx.x,tx.y);
       ctx.restore();
-      tx.t -= dt;
-      if (tx.t <= 0) texts.splice(ti,1);
+      tx.t-=dt;
+      if(tx.t<=0) texts.splice(ti,1);
     });
 
     requestAnimationFrame(draw);
