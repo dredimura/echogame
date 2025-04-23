@@ -17,79 +17,95 @@ const lanes = [
   { x: canvas.width * 0.75 },
 ];
 
-// Timing (135 BPM, squares fall for 2 beats)
+// Timing (135 BPM, 2-beat travel)
 const bpm               = 135;
 const beatInterval      = 60 / bpm;         // seconds per beat
-const travelBeats       = 2;                // how many beats to fall
+const travelBeats       = 2;
 const travelTime        = beatInterval * travelBeats;
 const fps               = 60;
 const pixelsPerFrame    = (hitZoneY + squareSize) / (travelTime * fps);
-const scheduleInterval  = '16n';            // 16th-note subdivisions
+const scheduleInterval  = '16n';            // every 16th note
 
-// ---- Start & Tap Handler ----
-canvas.addEventListener('click', onCanvasClick);
+// ---- Unified Tap/Click Handler ----
+function onUserTap(e) {
+  // 5) Prevent default to ensure this is treated as a user gesture
+  e.preventDefault();
 
-async function onCanvasClick(e) {
+  // First tap = start the game
   if (!started) {
-    // — First tap: unlock audio & kick off the song + drops
     started = true;
     msgDiv.style.display = 'none';
+    startGame();
+  } 
+  // Subsequent taps = hit detection
+  else {
+    handleHit(e);
+  }
+}
 
-    // 1) Resume the AudioContext
-    await Tone.start();
+// Attach to both pointerdown and touchstart so phones always fire it
+['pointerdown','touchstart'].forEach(evt =>
+  canvas.addEventListener(evt, onUserTap, { passive: false })
+);
 
-    // 2) Play your song (must have been uploaded as 'mysong.mp3')
-    new Tone.Player({
-      url: 'mysong.mp3',
-      autostart: true,
-      loop:    false
-    }).toDestination();
+async function startGame() {
+  // 6) Unlock/resume audio context
+  await Tone.start();
 
-    // 3) Configure the Transport
-    Tone.Transport.bpm.value = bpm;
-    Tone.Transport.scheduleRepeat((time) => {
-      // 50% chance each 16th note
-      if (Math.random() < 0.5) {
-        const laneIndex = Math.floor(Math.random() * lanes.length);
-        squares.push({ y: -squareSize, lane: laneIndex });
-      }
-    }, scheduleInterval);
+  // 7) Play your song (must be uploaded as 'mysong.mp3')
+  new Tone.Player({
+    url: 'mysong.mp3',
+    autostart: true,
+    loop:    false
+  }).toDestination();
 
-    Tone.Transport.start();
-    requestAnimationFrame(draw);
+  // 8) Configure transport & random drops
+  Tone.Transport.bpm.value = bpm;
+  Tone.Transport.scheduleRepeat((time) => {
+    if (Math.random() < 0.5) {
+      const laneIndex = Math.floor(Math.random() * lanes.length);
+      squares.push({ y: -squareSize, lane: laneIndex });
+    }
+  }, scheduleInterval);
 
-  } else {
-    // — Subsequent taps: hit detection
-    const rect  = canvas.getBoundingClientRect();
-    const x     = e.clientX - rect.left;
+  Tone.Transport.start();
+  requestAnimationFrame(draw);
+}
 
-    lanes.forEach((lane, idx) => {
-      // if tap is inside this lane’s box
-      if (x >= lane.x - squareSize/2 && x <= lane.x + squareSize/2) {
-        // look for a square in the hit zone
-        for (let i = squares.length - 1; i >= 0; i--) {
-          const sq = squares[i];
-          if (
-            sq.lane === idx &&
-            sq.y >= hitZoneY &&
-            sq.y <= hitZoneY + squareSize
-          ) {
-            score++;
-            scoreDiv.textContent = `Score: ${score}`;
-            squares.splice(i, 1);
-            break;
-          }
+function handleHit(e) {
+  // Determine touch/click X coordinate
+  const rect = canvas.getBoundingClientRect();
+  let clientX;
+  if (e.type === 'touchstart') clientX = e.touches[0].clientX;
+  else clientX = e.clientX;
+
+  const x = clientX - rect.left;
+
+  // Check each lane for a square in the hit zone
+  lanes.forEach((lane, idx) => {
+    if (x >= lane.x - squareSize/2 && x <= lane.x + squareSize/2) {
+      for (let i = squares.length - 1; i >= 0; i--) {
+        const sq = squares[i];
+        if (
+          sq.lane === idx &&
+          sq.y >= hitZoneY &&
+          sq.y <= hitZoneY + squareSize
+        ) {
+          score++;
+          scoreDiv.textContent = `Score: ${score}`;
+          squares.splice(i, 1);
+          return;  // break out once you hit one
         }
       }
-    });
-  }
+    }
+  });
 }
 
 // ---- Render Loop ----
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // draw hit-zone outlines
+  // Draw hit-zone outlines
   ctx.strokeStyle = '#555';
   lanes.forEach(lane => {
     ctx.strokeRect(
@@ -100,7 +116,7 @@ function draw() {
     );
   });
 
-  // update & draw each square
+  // Move & draw squares
   for (let i = squares.length - 1; i >= 0; i--) {
     const sq    = squares[i];
     sq.y       += pixelsPerFrame;
