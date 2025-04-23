@@ -9,35 +9,41 @@ const hitZoneY   = canvas.height - 100;
 const squareSize = 50;
 
 // timing (adjust bpm to match your song)
-const bpm          = 120;
-const beatInterval = 60 / bpm;        // seconds per beat
-const travelBeats  = 2;               // how many beats the square falls
-const travelTime   = beatInterval * travelBeats;
+const bpm            = 120;
+const beatInterval   = 60 / bpm;        // seconds per beat
+const travelBeats    = 2;               // how many beats the square falls
+const travelTime     = beatInterval * travelBeats;
 const pixelsPerFrame = (hitZoneY + squareSize) / (travelTime * 60);
-
-// load your song (must be uploaded as mysong.mp3)
-const player = new Tone.Player({
-  url: 'mysong.mp3',
-  autostart: false,
-  loop: false
-}).toDestination();
 
 // start button handler
 document.getElementById('startButton').addEventListener('click', async () => {
-  await Tone.start();      // unlock audio
-  player.start(0);         // play your track immediately
+  // 1) Unlock/resume the AudioContext (must be in a user gesture)
+  await Tone.start();
+
+  // 2) Instantiate and play your song AFTER context is unlocked
+  const player = new Tone.Player({
+    url: 'mysong.mp3',   // your uploaded file
+    autostart: true,     // start immediately
+    loop: false
+  }).toDestination();
+
+  // 3) Set the tempo
   Tone.Transport.bpm.value = bpm;
 
-  // schedule a square every quarter-note
+  // 4) Schedule a square every quarter-note
   Tone.Transport.scheduleRepeat((time) => {
     squares.push({ y: -squareSize });
   }, '4n');
 
+  // 5) Start the transport (which drives the scheduling)
   Tone.Transport.start();
+
+  // 6) Hide the button and kick off the render loop
   document.getElementById('startButton').style.display = 'none';
   requestAnimationFrame(draw);
 });
 
+// draw loop
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
