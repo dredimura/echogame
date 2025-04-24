@@ -1,4 +1,4 @@
-console.log('Loading game.js v17');
+console.log('Loading game.js v18');
 
 (() => {
   const canvas    = document.getElementById('gameCanvas'),
@@ -21,19 +21,26 @@ console.log('Loading game.js v17');
   let score=0, total=0, spawnID;
   let streak=0, combo=1, levelUpTimer=0;
   const notes=[], effects=[], texts=[];
-  const sz=50, flashDur=0.1, partLife=0.5, textDur=0.5, floatDist=100;
-  const bpm=135, colors=['#0ff','#f0f','#0f0'];
+  const sz=50,
+        flashDur=0.1,
+        partLife=0.5,
+        textDur=0.5,
+        floatDist=100;
+  const actualBPM      = 169,
+        effectiveBPM   = actualBPM/2,      // half speed
+        spawnProb      = 0.45,             // 10% fewer notes
+        colors         = ['#0ff','#f0f','#0f0'];
   let dy, hitY;
   const lanes=[{x:0},{x:0},{x:0}];
 
   function resize(){
-    canvas.width  = innerWidth;
-    canvas.height = innerHeight;
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
     hitY          = canvas.height - 100;
-    lanes[0].x    = innerWidth * 0.25;
-    lanes[1].x    = innerWidth * 0.50;
-    lanes[2].x    = innerWidth * 0.75;
-    dy            = (hitY + sz) / ((60/bpm)*2*60);
+    lanes[0].x    = canvas.width * 0.25;
+    lanes[1].x    = canvas.width * 0.50;
+    lanes[2].x    = canvas.width * 0.75;
+    dy = (hitY + sz) / ((60/effectiveBPM)*2*60);
   }
   window.addEventListener('resize', resize);
   resize();
@@ -51,7 +58,7 @@ console.log('Loading game.js v17');
     audio.play().catch(console.warn);
     audio.onended = endGame;
     spawnNote();
-    spawnID = setInterval(spawnNote, (60/bpm)*1000/4);
+    spawnID = setInterval(spawnNote, (60/effectiveBPM)*1000/4);
     draw();
   }
 
@@ -60,12 +67,11 @@ console.log('Loading game.js v17');
     if(!started) return;
     paused = !paused;
     if(paused){
-      audio.pause();
-      clearInterval(spawnID);
+      audio.pause(); clearInterval(spawnID);
       pauseBtn.textContent='Resume';
     } else {
       audio.play().catch(console.warn);
-      spawnID = setInterval(spawnNote, (60/bpm)*1000/4);
+      spawnID = setInterval(spawnNote, (60/effectiveBPM)*1000/4);
       pauseBtn.textContent='Pause';
       draw();
     }
@@ -74,7 +80,7 @@ console.log('Loading game.js v17');
 
   function spawnNote(){
     if(!started) return;
-    if(Math.random()<0.5){
+    if(Math.random() < spawnProb){
       notes.push({ y:-sz, lane: Math.floor(Math.random()*3) });
       total++;
       updatePct();
@@ -82,8 +88,7 @@ console.log('Loading game.js v17');
   }
 
   function endGame(){
-    started=false;
-    clearInterval(spawnID);
+    started=false; clearInterval(spawnID);
     finEl.textContent = `Score: ${score} (${pctEl.textContent})`;
     showLeaderboard();
     ov.style.display='block';
@@ -101,7 +106,7 @@ console.log('Loading game.js v17');
   function handleHit(e){
     const rect = canvas.getBoundingClientRect(),
           x    = e.clientX - rect.left,
-          tol  = 30;
+          tol  = 30 * 1.1;    // 10% wider hit window
     for(let i=notes.length-1; i>=0; i--){
       const n = notes[i], lx = lanes[n.lane].x;
       if(
@@ -113,10 +118,8 @@ console.log('Loading game.js v17');
         notes.splice(i,1);
         const oldCombo = combo;
         streak++;
-        combo = Math.min(8, Math.floor(streak/4)+1);
-        if(combo > oldCombo){
-          levelUpTimer = 1.0;
-        }
+        combo = Math.min(8, Math.floor(streak/4) + 1);
+        if(combo > oldCombo) levelUpTimer = 1.0;
         const base = getBase(n.y),
               pts  = base * combo;
         score += pts;
@@ -126,7 +129,7 @@ console.log('Loading game.js v17');
         mulEl.textContent = `x${combo}`;
         strEl.textContent = `Streak: ${streak}`;
         updatePct();
-        flashFx(n.lane, lx, hitY+sz/2);
+        flashFx(n.lane, lx, hitY + sz/2);
         texts.push({ txt:getLabel(n.y), x:lx, y0:hitY-20, t:textDur });
         return true;
       }
@@ -170,7 +173,7 @@ console.log('Loading game.js v17');
       {i:'CER',s:800,p:'80%'}
     ];
     const mePct = parseInt(pctEl.textContent,10),
-          me    = {i:initIn.value.toUpperCase().slice(0,3)||'YOU', s:score, p:pctEl.textContent};
+          me    = { i:initIn.value.toUpperCase().slice(0,3)||'YOU', s:score, p:pctEl.textContent };
     let board = art.slice();
     if(mePct >= 85) board.splice(2,0,me);
     else            board.push(me);
@@ -180,23 +183,23 @@ console.log('Loading game.js v17');
     board.slice(0,5).forEach(r=>{
       const li = document.createElement('li');
       li.textContent = `${r.i} - ${r.s} (${r.p})`;
-      listEl.appendChild(li);
+      listEl.append(li);
     });
   }
   submitBtn.addEventListener('click', ()=>{
-    const inits = initIn.value.toUpperCase().slice(0,3)||'---',
-          rec   = {i:inits,s:score,p:pctEl.textContent},
+    const inits = initIn.value.toUpperCase().slice(0,3) || '---',
+          rec   = {i:inits, s:score, p:pctEl.textContent},
           sv    = JSON.parse(localStorage.getItem('leaderboard')||'[]');
     sv.unshift(rec);
-    localStorage.setItem('leaderboard',JSON.stringify(sv.slice(0,10)));
+    localStorage.setItem('leaderboard', JSON.stringify(sv.slice(0,10)));
     showLeaderboard();
   });
-  closeBtn.addEventListener('click',()=>ov.style.display='none');
+  closeBtn.addEventListener('click', ()=>ov.style.display='none');
 
-  function flashFx(lane,cx,cy){
+  function flashFx(lane, cx, cy){
     effects.push({
       lane, t:flashDur,
-      parts:Array.from({length:8}).map(_=>{
+      parts: Array.from({length:8}).map(_=>{
         const a=Math.random()*Math.PI*2,
               s=100+Math.random()*100;
         return {x:cx,y:cy,vx:Math.cos(a)*s,vy:Math.sin(a)*s,t:partLife,ci:lane};
@@ -210,57 +213,55 @@ console.log('Loading game.js v17');
 
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    // **fire-y wavy flame burst**
+    // flame (wavy) when leveling up
     if(levelUpTimer > 0){
-      const H = 100,      // flame max height
-            t = levelUpTimer,
-            baseY = canvas.height;
-      // gradient
-      const grad = ctx.createLinearGradient(0, baseY-H, 0, baseY);
-      grad.addColorStop(0, `rgba(255,165,0,${t})`);
-      grad.addColorStop(0.5,`rgba(255,69,0,${t})`);
-      grad.addColorStop(1,`rgba(0,0,0,0)`);
+      const H    = 100,
+            t    = levelUpTimer,
+            base = canvas.height;
+      const grad = ctx.createLinearGradient(0, base-H, 0, base);
+      grad.addColorStop(0,   `rgba(255,165,0,${t})`);
+      grad.addColorStop(0.5, `rgba(255,69,0,${t})`);
+      grad.addColorStop(1,   `rgba(0,0,0,0)`);
       ctx.fillStyle = grad;
       ctx.beginPath();
-      ctx.moveTo(0, baseY);
-      ctx.lineTo(0, baseY - H * (0.3 + 0.2 * Math.sin(Date.now()/200)));
+      ctx.moveTo(0, base);
+      const wave = () => 0.3 + 0.2 * Math.sin(Date.now()/200);
+      ctx.lineTo(0, base - H * wave());
       const step = 20;
       for(let x=step; x<=canvas.width; x+=step){
-        const sin = Math.sin(x/step + Date.now()/300);
-        const y   = baseY - H * (0.3 + 0.2 * sin);
-        ctx.lineTo(x, y);
+        const s = Math.sin(x/step + Date.now()/300);
+        ctx.lineTo(x, base - H * (0.3 + 0.2*s));
       }
-      ctx.lineTo(canvas.width, baseY);
+      ctx.lineTo(canvas.width, base);
       ctx.closePath();
       ctx.fill();
       levelUpTimer = Math.max(0, t - dt);
     }
 
-    // **glowing strings (extra intense)**
+    // glowing strings (extra intense)
     ctx.save();
     ctx.shadowColor = combo>4?'orange':'cyan';
-    ctx.shadowBlur  = combo * 8;
+    ctx.shadowBlur  = combo*8;
     [4,2,1].forEach((w,i)=>{
-      ctx.strokeStyle='#bbb'; ctx.lineWidth=w;
-      const x=lanes[i].x;
+      ctx.strokeStyle='#bbb';
+      ctx.lineWidth  = w;
+      const x = lanes[i].x;
       ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke();
     });
     ctx.restore();
 
-    // **target zones** (slightly bigger while flame)
-    ctx.strokeStyle='#555';
+    // target zones (flash expand)
+    ctx.strokeStyle = '#555';
     lanes.forEach(l=>{
-      const extra = levelUpTimer>0 ? 10 : 0,
-            size  = sz + extra,
-            off   = extra/2;
-      ctx.strokeRect(l.x - size/2, hitY - off, size, size);
+      const extra = levelUpTimer>0 ? 10 : 0;
+      ctx.strokeRect(l.x - (sz+extra)/2, hitY - extra/2, sz+extra, sz+extra);
     });
 
     // draw notes
     notes.forEach(n=>{
       n.y += dy;
-      const x=lanes[n.lane].x;
-      ctx.fillStyle=colors[n.lane];
+      const x = lanes[n.lane].x;
+      ctx.fillStyle = colors[n.lane];
       const w=sz, h=sz*1.2;
       ctx.beginPath();
       ctx.moveTo(x,n.y);
@@ -268,8 +269,7 @@ console.log('Loading game.js v17');
       ctx.quadraticCurveTo(x, n.y+h, x+w/2, n.y+h*0.4);
       ctx.closePath(); ctx.fill();
     });
-
-    // remove off screen
+    // remove off-screen + reset
     for(let i=notes.length-1;i>=0;i--){
       if(notes[i].y>canvas.height){
         notes.splice(i,1);
@@ -277,12 +277,11 @@ console.log('Loading game.js v17');
       }
     }
 
-    // particle flashes
+    // particle & flash
     effects.forEach((g,gi)=>{
-      const alpha = g.t/flashDur, x=lanes[g.lane].x;
-      ctx.save(); ctx.globalAlpha=alpha; ctx.fillStyle='#fff';
-      ctx.fillRect(x-sz/2,hitY,sz,sz);
-      ctx.restore();
+      const a = g.t/flashDur, x=lanes[g.lane].x;
+      ctx.save(); ctx.globalAlpha=a; ctx.fillStyle='#fff';
+      ctx.fillRect(x-sz/2,hitY,sz,sz); ctx.restore();
       g.t -= dt;
       g.parts.forEach(p=>{
         p.x+=p.vx*dt; p.y+=p.vy*dt; p.t-=dt;
@@ -292,23 +291,21 @@ console.log('Loading game.js v17');
         ctx.fillRect(p.x-3,p.y-3,6,6);
         ctx.restore();
       });
-      g.parts = g.parts.filter(p=>p.t>0);
+      g.parts=g.parts.filter(p=>p.t>0);
       if(g.t<=0 && g.parts.length===0) effects.splice(gi,1);
     });
 
-    // floating text
+    // floating texts
     texts.forEach((t,ti)=>{
       const prog=1-(t.t/textDur),
             y   = t.y0 - (floatDist*prog),
             a   = t.t/textDur;
       ctx.save(); ctx.globalAlpha=a; ctx.textAlign='center'; ctx.font='20px sans-serif';
       let fill='#fff';
-      if(t.txt==='Perfect')   fill='yellow';
+      if(t.txt==='Perfect') fill='yellow';
       else if(t.txt==='Excellent') fill='magenta';
-      ctx.fillStyle=fill;
-      ctx.fillText(t.txt, t.x, y);
-      ctx.restore();
-      t.t -= dt;
+      ctx.fillStyle=fill; ctx.fillText(t.txt,t.x,y); ctx.restore();
+      t.t-=dt;
       if(t.t<=0) texts.splice(ti,1);
     });
 
