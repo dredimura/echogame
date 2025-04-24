@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- disable cache -->
+  <!-- no-cache -->
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
   <meta http-equiv="Pragma" content="no-cache"/>
   <meta http-equiv="Expires" content="0"/>
@@ -29,10 +29,27 @@
     #message { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:24px; color:#ccc; z-index:10; }
     #pauseButton { position:absolute; top:10px; right:10px; padding:6px 12px; background:#222; color:#fff; border:1px solid #555; border-radius:4px; font-size:14px; display:none; z-index:10; }
     canvas { position:absolute; top:0; left:0; width:100%; height:100%; touch-action:none; }
-    #leaderboardOverlay { position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:none; color:#fff; z-index:20; }
-    #leaderboardContent { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; }
-    #leaderboardContent input { font-size:18px; text-transform:uppercase; width:60px; }
-    #leaderboardContent button { margin:8px; padding:6px 12px; }
+
+    /* final overlay */
+    #endOverlay {
+      position:absolute; top:0; left:0; width:100%; height:100%;
+      background:rgba(0,0,0,0.9); display:none; color:#fff; z-index:20;
+      display:flex; align-items:center; justify-content:center;
+    }
+    #endCard {
+      background:rgba(20,20,20,0.85); padding:20px; border-radius:8px;
+      text-align:center; max-width:80%; animation: fadeIn 0.5s ease-out;
+    }
+    #endCard h2 { margin:0 0 10px; font-size:28px; }
+    #stats { text-align:left; margin: 10px 0; }
+    #stats div { margin:4px 0; font-size:18px; }
+    #stars { font-size:32px; margin-bottom:10px; animation: pulse 1s ease-out; }
+    @keyframes fadeIn {
+      from { opacity:0; transform:scale(0.8);} to {opacity:1; transform:scale(1);}
+    }
+    @keyframes pulse {
+      0%,100% { transform:scale(1); } 50% { transform:scale(1.1); }
+    }
   </style>
 </head>
 <body>
@@ -50,21 +67,20 @@
   <audio id="gameAudio" src="mysong.mp3" preload="auto"></audio>
   <canvas id="gameCanvas"></canvas>
 
-  <div id="leaderboardOverlay">
-    <div id="leaderboardContent">
-      <h2>Game Over</h2>
-      <p id="finalScore"></p>
-      <div>
-        <input id="initials" type="text" maxlength="3" placeholder="ABC"/>
-        <button id="submitScore">Submit</button>
+  <div id="endOverlay">
+    <div id="endCard">
+      <div id="stars">☆☆☆☆☆</div>
+      <h2>Your Results</h2>
+      <div id="stats">
+        <div id="finalScore"></div>
+        <div id="finalPercent"></div>
+        <div id="finalMaxCombo"></div>
+        <div id="finalStreak"></div>
       </div>
-      <h3>Leaderboard</h3>
-      <ol id="leaderboardList"></ol>
-      <button id="closeLeaderboard">Close</button>
+      <button id="restartBtn">Play Again</button>
     </div>
   </div>
 
-  <!-- v18 -->
-  <script src="game.js?ver=18"></script>
+  <script src="game.js?ver=20"></script>
 </body>
 </html>
