@@ -1,10 +1,10 @@
-console.log('Loading game.js v31 (speed+fade)');
+console.log('Loading game.js v32 (speed+fade+fixpct)');
 
 // expose globally
 window.startGame = startGame;
 
 // state
-let started=false, paused=false;
+let started=false, paused=false, hits=0;
 let score=0, total=0, spawnID, stopID;
 let streak=0, combo=1, maxCombo=1, maxStreak=0;
 let levelTimer=0;
@@ -19,7 +19,7 @@ const sz        = 50,
 const actualBPM  = 169,
       effBPM     = actualBPM/2,
       travelBeats= 4,
-      speedMult  = 1.2,
+      speedMult  = 1.32,
       spawnProb  = 0.45,
       colors     = ['#0ff','#f0f','#0f0'];
 
@@ -66,7 +66,7 @@ function startGame(){
   clearInterval(spawnID);
   clearTimeout(stopID);
 
-  started=true; paused=false;
+  started=true; paused=false; hits=0;
   score=0; total=0; streak=0; combo=1; maxCombo=1; maxStreak=0; levelTimer=0;
   notes.length=0; effects.length=0; texts.length=0;
   scoreEl.textContent='Score: 0';
@@ -118,10 +118,9 @@ function finishGame(){
   clearInterval(spawnID);
   clearTimeout(stopID);
 
-  const raw = total?Math.round(score/(total*100)*100):0,
-        pct = Math.min(100,raw);
+  const p = total ? Math.round(hits/total*100) : 0;
 
-  let stars=Math.floor(pct/20), rem=(pct%20)/20;
+  let stars=Math.floor(p/20), rem=(p%20)/20;
   if(rem>=0.75) stars++; else if(rem>=0.25) stars+=0.5;
   stars=Math.min(5,stars);
 
@@ -129,23 +128,23 @@ function finishGame(){
   for(let i=1;i<=5;i++){
     sOut += stars>=i ? '★' : (stars>=i-0.5 ? '⯪' : '☆');
   }
-  starsEl.textContent = sOut;
+  starsEl.textContent=sOut;
 
-  fsEl.textContent = `Score: ${score}`;
-  fpEl.textContent = `Hit Rate: ${pct}%`;
-  mcEl.textContent = `Max Combo: ${maxCombo}x`;
-  lsEl.textContent = `Longest Streak: ${maxStreak}`;
+  fsEl.textContent=`Score: ${score}`;
+  fpEl.textContent=`Hit Rate: ${p}%`;
+  mcEl.textContent=`Max Combo: ${maxCombo}x`;
+  lsEl.textContent=`Longest Streak: ${maxStreak}`;
   endOv.style.display='flex';
 
   for(let i=0;i<40;i++){
-    const p=document.createElement('div');
-    p.className='p';
+    const pdiv=document.createElement('div');
+    pdiv.className='p';
     const a=Math.random()*2*Math.PI, d=120+Math.random()*80;
-    p.style.left='50%'; p.style.top='20%';
-    p.style.setProperty('--dx',Math.cos(a)*d+'px');
-    p.style.setProperty('--dy',Math.sin(a)*d+'px');
-    partDiv.appendChild(p);
-    setTimeout(()=>p.remove(),1200);
+    pdiv.style.left='50%'; pdiv.style.top='20%';
+    pdiv.style.setProperty('--dx',Math.cos(a)*d+'px');
+    pdiv.style.setProperty('--dy',Math.sin(a)*d+'px');
+    partDiv.appendChild(pdiv);
+    setTimeout(()=>pdiv.remove(),1200);
   }
 }
 
@@ -163,6 +162,7 @@ function onTap(e){
       const base=getBase(n.y),
             pts=base*combo;
       score+=pts;
+      hits++;
       streak++;
       combo=Math.min(8,Math.floor(streak/4)+1);
       maxCombo=Math.max(maxCombo,combo);
@@ -206,9 +206,8 @@ function getLabel(y){
 }
 
 function updatePct(){
-  const raw= total?Math.round(score/(total*100)*100):0,
-        p   = Math.min(100,raw);
-  pctEl.textContent=`${p}%`;
+  const p = total ? Math.round(hits/total*100) : 0;
+  pctEl.textContent = `${p}%`;
 }
 
 function flashFx(l,cx,cy){
