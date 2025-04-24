@@ -1,21 +1,18 @@
-console.log('Loading game.js v26');
+console.log('Loading game.js v28');
 
 // expose globally
 window.startGame = startGame;
 
-// DOM & state
+// state
 let started=false, paused=false;
 let score=0, total=0, spawnID, stopID;
 let streak=0, combo=1, maxCombo=1, maxStreak=0;
 let levelTimer=0, activeSlide=null;
 
-const notes   = [],
-      effects = [],
-      texts   = [];
-
+const notes   = [], effects = [], texts = [];
 const sz        = 50,
       flashDur  = 0.1,
-      partLife  = 0.7,    // longer particles
+      partLife  = 0.7,
       textDur   = 0.5,
       floatDist = 100;
 
@@ -25,6 +22,7 @@ const actualBPM = 169,
       slideProb = 0.15,
       minSlide  = 120,
       maxSlide  = 200,
+      travelBeats=4,
       colors    = ['#0ff','#f0f','#0f0'];
 
 let dy, hitY;
@@ -66,12 +64,18 @@ function resize(){
   lanes[0].x    = innerWidth*0.25;
   lanes[1].x    = innerWidth*0.50;
   lanes[2].x    = innerWidth*0.75;
-  dy            = (hitY + sz) / ((60/effBPM)*2*60);
+  const frames = (60/effBPM)*travelBeats*60;
+  dy = (hitY+sz)/frames;
 }
 
 function startGame(){
+  // clear any old spawners
+  clearInterval(spawnID);
+  clearTimeout(stopID);
+
   started=true; paused=false;
-  score=0; total=0; streak=0; combo=1; maxCombo=1; maxStreak=0; levelTimer=0; activeSlide=null;
+  score=0; total=0; streak=0; combo=1; maxCombo=1; maxStreak=0;
+  levelTimer=0; activeSlide=null;
   notes.length=0; effects.length=0; texts.length=0;
   scoreEl.textContent='Score: 0';
   pctEl.textContent  ='0%';
@@ -82,7 +86,8 @@ function startGame(){
   endOv.style.display='none';
   partDiv.innerHTML='';
 
-  audio.currentTime=0; audio.play().catch(()=>{});
+  audio.currentTime=0;
+  audio.play().catch(()=>{});
   spawnNote();
   spawnID = setInterval(spawnNote,(60/effBPM)*1000/4);
   stopID  = setTimeout(()=>clearInterval(spawnID),144000);
@@ -107,15 +112,18 @@ function togglePause(){
 function spawnNote(){
   if(!started) return;
   if(Math.random()<spawnProb){
-    const lane = Math.floor(Math.random()*3);
-    const isSlide = Math.random()<slideProb;
-    // conflict check: no notes on either lane of an active slide
-    if(activeSlide && (lane===activeSlide.lane || (isSlide && getTarget(lane)===activeSlide.lane || (isSlide && getTarget(lane)===activeSlide.target)))) return;
+    const lane   = Math.floor(Math.random()*3),
+          isSlide= Math.random()<slideProb;
+    // prevent any spawn on an active slide’s lanes
+    if(activeSlide && (lane===activeSlide.lane || (isSlide && (getTarget(lane)===activeSlide.lane || getTarget(lane)===activeSlide.target))))
+      return;
+
     if(isSlide){
       const target   = getTarget(lane),
             slideLen = minSlide + Math.random()*(maxSlide-minSlide);
-      // also block if any existing note occupies either lane/target
-      if(notes.some(n=>n.lane===lane||n.lane===target||(n.type==='slide'&&(n.target===lane||n.target===target)))) return;
+      // also block if other notes occupy those lanes
+      if(notes.some(n=>n.lane===lane||n.lane===target||(n.type==='slide'&&(n.target===lane||n.target===target))))
+        return;
       notes.push({ y:-sz, lane, type:'slide', target, tapped:false, slideLen });
     } else {
       notes.push({ y:-sz, lane, type:'tap' });
@@ -123,7 +131,6 @@ function spawnNote(){
     total++; updatePct();
   }
 }
-// helper
 function getTarget(l){ return l===1? (Math.random()<0.5?0:2) : (l===0?1:1); }
 
 function finishGame(){
@@ -145,7 +152,7 @@ function finishGame(){
   mcEl.textContent=`Max Combo: ${maxCombo}x`;
   lsEl.textContent=`Longest Streak: ${maxStreak}`;
   endOv.style.display='flex';
-  // burst
+
   for(let i=0;i<40;i++){
     const p=document.createElement('div');
     p.className='p';
@@ -160,12 +167,10 @@ function finishGame(){
 
 function onDown(e){
   e.preventDefault();
-  const r=canvas.getBoundingClientRect(),
-        x=e.clientX-r.left, tol=30;
+  const r=canvas.getBoundingClientRect(), x=e.clientX-r.left, tol=30;
   if(!started) return startGame();
   if(paused)  return;
 
-  // slide head
   for(let i=notes.length-1;i>=0;i--){
     const n=notes[i];
     if(n.type==='slide' && !n.tapped){
@@ -178,30 +183,24 @@ function onDown(e){
       }
     }
   }
-  // tap
   if(!handleTap(x,tol)){
     resetStreak(); updatePct();
   }
 }
+
 function onMove(e){
   if(!activeSlide) return;
-  const r=canvas.getBoundingClientRect(),
-        x=e.clientX-r.left;
-  const n=activeSlide,
-        sx=lanes[n.lane].x,
-        tx=lanes[n.target].x;
+  const r=canvas.getBoundingClientRect(), x=e.clientX-r.left;
+  const n=activeSlide, sx=lanes[n.lane].x, tx=lanes[n.target].x;
   let t=(x-sx)/(tx-sx||1); t=Math.max(0,Math.min(1,t));
-  activeSlide.dragPos={
-    x: sx + (tx-sx)*t,
-    y: n.y - n.slideLen*t
-  };
+  activeSlide.dragPos={ x:sx+(tx-sx)*t, y:n.y-n.slideLen*t };
   if(t>0.8){
-    // finale pop
     award(n);
     notes.splice(notes.indexOf(n),1);
     activeSlide=null;
   }
 }
+
 function onUp(){
   if(activeSlide){
     resetStreak(); updatePct();
@@ -214,9 +213,7 @@ function onUp(){
 function handleTap(x,tol){
   for(let i=notes.length-1;i>=0;i--){
     const n=notes[i], lx=lanes[n.lane].x;
-    if(n.type==='tap' &&
-       Math.abs(x-lx)<tol &&
-       Math.abs(n.y-hitY)<tol){
+    if(n.type==='tap' && Math.abs(x-lx)<tol && Math.abs(n.y-hitY)<tol){
       award(n);
       notes.splice(i,1);
       return true;
@@ -232,8 +229,7 @@ function award(n){
   maxCombo=Math.max(maxCombo,combo);
   if(combo>oldC) levelTimer=1.0;
 
-  const base=getBase(n.y),
-        pts = base*combo;
+  const base=getBase(n.y), pts=base*combo;
   score+=pts;
   scoreEl.textContent=`Score: ${score}`;
   scoreEl.classList.add('pop');
@@ -242,10 +238,8 @@ function award(n){
   strEl.textContent=`Streak: ${streak}`;
   updatePct();
 
-  // normal flash
   flashFx(n.lane,lanes[n.lane].x,hitY+sz/2);
 
-  // slide bonus
   if(n.type==='slide'){
     for(let i=0;i<30;i++){
       const p=document.createElement('div');
@@ -287,8 +281,8 @@ function getLabel(y){
 }
 
 function updatePct(){
-  const raw = total?Math.round(score/(total*100)*100):0,
-        p   = Math.min(100,raw);
+  const raw= total?Math.round(score/(total*100)*100):0,
+        p  = Math.min(100,raw);
   pctEl.textContent=`${p}%`;
 }
 
@@ -307,7 +301,6 @@ function draw(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
   const dt=1/60;
 
-  // level‐up flame
   if(levelTimer>0){
     const H=100, t=levelTimer, base=canvas.height;
     const g=ctx.createLinearGradient(0,base-H,0,base);
@@ -327,27 +320,24 @@ function draw(){
     levelTimer=Math.max(0,t-dt);
   }
 
-  // strings
   ctx.save();
-  ctx.shadowColor = combo>4?'orange':'cyan';
-  ctx.shadowBlur  = combo*8;
+  ctx.shadowColor=combo>4?'orange':'cyan';
+  ctx.shadowBlur =combo*8;
   [4,2,1].forEach((w,i)=>{
     ctx.strokeStyle='#bbb';ctx.lineWidth=w;
     ctx.beginPath();ctx.moveTo(lanes[i].x,0);ctx.lineTo(lanes[i].x,canvas.height);ctx.stroke();
   });
   ctx.restore();
 
-  // targets
   ctx.strokeStyle='#555';
   lanes.forEach(l=>{
     const ex=levelTimer>0?10:0;
     ctx.strokeRect(l.x-(sz+ex)/2,hitY-ex/2,sz+ex,sz+ex);
   });
 
-  // notes & slides
   notes.forEach(n=>{
     n.y+=dy;
-    const x0=lanes[n.lane].x, y0=n.y, w=sz,h=sz*1.2;
+    const x0=lanes[n.lane].x,y0=n.y,w=sz,h=sz*1.2;
     if(n.type==='tap'){
       ctx.fillStyle=colors[n.lane];
       ctx.beginPath();
@@ -356,7 +346,6 @@ function draw(){
       ctx.quadraticCurveTo(x0,y0+h,x0+w/2,y0+h*0.4);
       ctx.closePath();ctx.fill();
     } else if(n!==activeSlide){
-      // static slide
       const x1=lanes[n.target].x,
             y1=y0-n.slideLen;
       ctx.strokeStyle=colors[n.lane];
@@ -376,12 +365,10 @@ function draw(){
     }
   });
 
-  // drag‐along glow
   if(activeSlide && activeSlide.dragPos){
-    const {x,y}=activeSlide.dragPos, w=sz,h=sz*1.2;
+    const {x,y}=activeSlide.dragPos,w=sz,h=sz*1.2;
     ctx.save();
-    ctx.strokeStyle='#ff0'; ctx.lineWidth=8;
-    ctx.shadowColor='#ff0'; ctx.shadowBlur=20;
+    ctx.strokeStyle='#ff0';ctx.lineWidth=8;ctx.shadowColor='#ff0';ctx.shadowBlur=20;
     ctx.beginPath();
     ctx.moveTo(lanes[activeSlide.lane].x,hitY+h*0.5);
     ctx.lineTo(x,y+h*0.5);
@@ -396,7 +383,6 @@ function draw(){
     ctx.closePath();ctx.fill();
   }
 
-  // off‐screen
   for(let i=notes.length-1;i>=0;i--){
     if(notes[i].y>canvas.height){
       notes.splice(i,1);
@@ -404,7 +390,6 @@ function draw(){
     }
   }
 
-  // flashes & particles
   effects.forEach((g,gi)=>{
     const a=g.t/flashDur, x=lanes[g.lane].x;
     ctx.save();ctx.globalAlpha=a;ctx.fillStyle='#fff';
@@ -419,10 +404,9 @@ function draw(){
       ctx.restore();
     });
     g.parts=g.parts.filter(p=>p.t>0);
-    if(g.t<=0&&g.parts.length===0) effects.splice(gi,1);
+    if(g.t<=0&&g.parts.length===0)effects.splice(gi,1);
   });
 
-  // floating text
   texts.forEach((t,ti)=>{
     const prog=1-(t.t/textDur),
           y   = t.y0 - floatDist*prog,
