@@ -1,4 +1,4 @@
-console.log('Loading game.js v30');
+console.log('Loading game.js v31 (speed+fade)');
 
 // expose globally
 window.startGame = startGame;
@@ -18,8 +18,8 @@ const sz        = 50,
 
 const actualBPM  = 169,
       effBPM     = actualBPM/2,
-      travelBeats= 4,         // default beats
-      fastPct    = 0.3,       // 30% fast
+      travelBeats= 4,
+      speedMult  = 1.2,
       spawnProb  = 0.45,
       colors     = ['#0ff','#f0f','#0f0'];
 
@@ -104,11 +104,9 @@ function togglePause(){
 function spawnNote(){
   if(!started) return;
   if(Math.random()<spawnProb){
-    const lane = Math.floor(Math.random()*3),
-          isFast = Math.random()<fastPct,
-          tb     = isFast ? travelBeats/2 : travelBeats,
-          frames = (60/effBPM)*tb*60,
-          dy     = (hitY+sz)/frames;
+    const lane = Math.floor(Math.random()*3);
+    const frames = (60/effBPM)*travelBeats*60;
+    const dy = ((hitY + sz)/frames) * speedMult;
     notes.push({ y:-sz, lane, dy });
     total++;
     updatePct();
@@ -131,12 +129,12 @@ function finishGame(){
   for(let i=1;i<=5;i++){
     sOut += stars>=i ? '★' : (stars>=i-0.5 ? '⯪' : '☆');
   }
-  starsEl.textContent=sOut;
+  starsEl.textContent = sOut;
 
-  fsEl.textContent=`Score: ${score}`;
-  fpEl.textContent=`Hit Rate: ${pct}%`;
-  mcEl.textContent=`Max Combo: ${maxCombo}x`;
-  lsEl.textContent=`Longest Streak: ${maxStreak}`;
+  fsEl.textContent = `Score: ${score}`;
+  fpEl.textContent = `Hit Rate: ${pct}%`;
+  mcEl.textContent = `Max Combo: ${maxCombo}x`;
+  lsEl.textContent = `Longest Streak: ${maxStreak}`;
   endOv.style.display='flex';
 
   for(let i=0;i<40;i++){
@@ -144,8 +142,8 @@ function finishGame(){
     p.className='p';
     const a=Math.random()*2*Math.PI, d=120+Math.random()*80;
     p.style.left='50%'; p.style.top='20%';
-    p.style.setProperty('--dx', Math.cos(a)*d+'px');
-    p.style.setProperty('--dy', Math.sin(a)*d+'px');
+    p.style.setProperty('--dx',Math.cos(a)*d+'px');
+    p.style.setProperty('--dy',Math.sin(a)*d+'px');
     partDiv.appendChild(p);
     setTimeout(()=>p.remove(),1200);
   }
@@ -153,23 +151,22 @@ function finishGame(){
 
 function onTap(e){
   e.preventDefault();
-  const r = canvas.getBoundingClientRect(),
-        x = e.clientX - r.left,
-        tol = 30;
+  const r=canvas.getBoundingClientRect(),
+        x=e.clientX-r.left,
+        tol=30;
   if(!started) return startGame();
-  if(paused)  return;
+  if(paused) return;
 
   for(let i=notes.length-1;i>=0;i--){
     const n=notes[i], lx=lanes[n.lane].x;
     if(Math.abs(x-lx)<=tol && Math.abs(n.y-hitY)<=tol){
-      // hit
-      const base = getBase(n.y),
-            pts  = base*combo;
-      score += pts;
+      const base=getBase(n.y),
+            pts=base*combo;
+      score+=pts;
       streak++;
-      combo = Math.min(8,Math.floor(streak/4)+1);
-      maxCombo  = Math.max(maxCombo,combo);
-      maxStreak = Math.max(maxStreak,streak);
+      combo=Math.min(8,Math.floor(streak/4)+1);
+      maxCombo=Math.max(maxCombo,combo);
+      maxStreak=Math.max(maxStreak,streak);
 
       scoreEl.textContent=`Score: ${score}`;
       scoreEl.classList.add('pop');
@@ -210,7 +207,7 @@ function getLabel(y){
 
 function updatePct(){
   const raw= total?Math.round(score/(total*100)*100):0,
-        p  = Math.min(100,raw);
+        p   = Math.min(100,raw);
   pctEl.textContent=`${p}%`;
 }
 
@@ -219,7 +216,7 @@ function flashFx(l,cx,cy){
     lane:l, t:flashDur,
     parts:Array.from({length:8}).map(_=>{
       const a=Math.random()*2*Math.PI, s=120+Math.random()*80;
-      return { x:cx, y:cy, vx:Math.cos(a)*s, vy:Math.sin(a)*s, t:partLife, ci:l };
+      return {x:cx,y:cy,vx:Math.cos(a)*s,vy:Math.sin(a)*s,t:partLife,ci:l};
     })
   });
 }
@@ -238,25 +235,33 @@ function draw(){
   });
   ctx.restore();
 
-  // targets
+  // target zones
   ctx.strokeStyle='#555';
   lanes.forEach(l=>{
     ctx.strokeRect(l.x-sz/2, hitY, sz, sz);
   });
 
-  // notes
+  // notes with fade-in
   notes.forEach(n=>{
     n.y += n.dy;
+    const mid = hitY/2;
+    let alpha = n.y < mid ? n.y/mid : 1;
+    alpha = Math.max(0, Math.min(1, alpha));
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
     const x=lanes[n.lane].x, y=n.y, w=sz, h=sz*1.2;
     ctx.fillStyle=colors[n.lane];
     ctx.beginPath();
     ctx.moveTo(x,y);
     ctx.lineTo(x-w/2,y+h*0.4);
     ctx.quadraticCurveTo(x,y+h,x+w/2,y+h*0.4);
-    ctx.closePath();ctx.fill();
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
   });
 
-  // offscreen
+  // remove off-screen
   for(let i=notes.length-1;i>=0;i--){
     if(notes[i].y>canvas.height){
       notes.splice(i,1);
@@ -274,7 +279,7 @@ function draw(){
     ctx.fillRect(x-sz/2,hitY,sz,sz);ctx.restore();
     g.t-=1/60;
     g.parts.forEach(p=>{
-      p.x+=p.vx*(1/60); p.y+=p.vy*(1/60); p.t-=(1/60);
+      p.x+=p.vx*(1/60); p.y+=p.vy*(1/60); p.t-=1/60;
       ctx.save();
       ctx.globalAlpha=p.t/partLife;
       ctx.fillStyle=colors[p.ci];
@@ -295,7 +300,7 @@ function draw(){
     if(t.txt==='Perfect') fill='yellow';
     else if(t.txt==='Excellent') fill='magenta';
     ctx.fillStyle=fill;ctx.fillText(t.txt,t.x,y);ctx.restore();
-    t.t-=(1/60);
+    t.t-=1/60;
     if(t.t<=0) texts.splice(ti,1);
   });
 
