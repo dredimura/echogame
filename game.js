@@ -1,4 +1,4 @@
-console.log('Loading game.js v21');
+console.log('Loading game.js v22');
 
 (() => {
   const canvas   = document.getElementById('gameCanvas'),
@@ -63,8 +63,8 @@ console.log('Loading game.js v21');
     audio.onended = finishGame;
     spawnNote();
     spawnID = setInterval(spawnNote, (60/effBPM)*1000/4);
-    // stop spawns at 2:24
-    stopID = setTimeout(() => clearInterval(spawnID), 144000);
+    // stop spawning at 2m24s
+    stopID = setTimeout(()=>clearInterval(spawnID), 144000);
     requestAnimationFrame(draw);
   }
 
@@ -73,13 +73,12 @@ console.log('Loading game.js v21');
     if(!started) return;
     paused = !paused;
     if(paused){
-      audio.pause(); clearInterval(spawnID);
-      clearTimeout(stopID);
+      audio.pause(); clearInterval(spawnID); clearTimeout(stopID);
       pauseBtn.textContent='Resume';
     } else {
       audio.play().catch(console.warn);
       spawnID = setInterval(spawnNote, (60/effBPM)*1000/4);
-      stopID = setTimeout(()=>clearInterval(spawnID), 144000 - audio.currentTime*1000);
+      stopID  = setTimeout(()=>clearInterval(spawnID), 144000 - audio.currentTime*1000);
       pauseBtn.textContent='Pause';
       requestAnimationFrame(draw);
     }
@@ -91,7 +90,7 @@ console.log('Loading game.js v21');
     if(Math.random()<spawnProb){
       const lane = Math.floor(Math.random()*3);
       if(Math.random()<slideProb){
-        // slide to neighbor
+        // slide note
         let target = lane===1 ? (Math.random()<0.5?0:2)
                      : lane===0 ? 1 : 1;
         notes.push({ y:-sz, lane, type:'slide', target });
@@ -104,42 +103,41 @@ console.log('Loading game.js v21');
 
   function finishGame(){
     started=false; clearInterval(spawnID); clearTimeout(stopID);
-
     const raw = total?Math.round(score/(total*100)*100):0,
-          pct = Math.min(100, raw);
+          pct = Math.min(100,raw);
 
     // star rating
     let stars = Math.floor(pct/20),
         rem   = (pct%20)/20;
-    if(rem >= 0.75) stars+=1;
-    else if(rem >= 0.25) stars+=0.5;
-    stars = Math.min(5, stars);
+    if(rem>=0.75) stars+=1;
+    else if(rem>=0.25) stars+=0.5;
+    stars=Math.min(5,stars);
 
-    // render stars
-    let sOut = '';
+    // display stars
+    let sOut='';
     for(let i=1;i<=5;i++){
       if(stars>=i)         sOut+='★';
-      else if(stars>=i-0.5)sOut+='⯪';
-      else                 sOut+='☆';
+      else if(stars>=i-0.5) sOut+='⯪';
+      else                  sOut+='☆';
     }
-    starsEl.textContent = sOut;
+    starsEl.textContent=sOut;
 
-    fsEl.textContent = `Score: ${score}`;
-    fpEl.textContent = `Hit Rate: ${pct}%`;
-    mcEl.textContent = `Max Combo: ${maxCombo}x`;
-    lsEl.textContent = `Longest Streak: ${maxStreak}`;
+    fsEl.textContent=`Score: ${score}`;
+    fpEl.textContent=`Hit Rate: ${pct}%`;
+    mcEl.textContent=`Max Combo: ${maxCombo}x`;
+    lsEl.textContent=`Longest Streak: ${maxStreak}`;
     endOv.style.display='flex';
 
     // particle burst
     for(let i=0;i<30;i++){
-      const p = document.createElement('div');
+      const p=document.createElement('div');
       p.className='p';
-      const angle = Math.random()*2*Math.PI,
-            dist  = 100+Math.random()*50;
-      p.style.left = '50%';
-      p.style.top  = '20%';
-      p.style.setProperty('--dx', (Math.cos(angle)*dist)+'px');
-      p.style.setProperty('--dy', (Math.sin(angle)*dist)+'px');
+      const angle=Math.random()*2*Math.PI,
+            dist =100+Math.random()*50;
+      p.style.left='50%';
+      p.style.top='20%';
+      p.style.setProperty('--dx',Math.cos(angle)*dist+'px');
+      p.style.setProperty('--dy',Math.sin(angle)*dist+'px');
       partDiv.appendChild(p);
       setTimeout(()=>p.remove(),1000);
     }
@@ -147,44 +145,40 @@ console.log('Loading game.js v21');
 
   restart.addEventListener('click', startGame);
 
-  // input handlers
   canvas.addEventListener('pointerdown', e=>{
     e.preventDefault();
-    const rect = canvas.getBoundingClientRect(),
-          x    = e.clientX-rect.left,
-          tol  = 30*1.1;
+    const rect=canvas.getBoundingClientRect(),
+          x   =e.clientX-rect.left,
+          tol =30*1.1;
     if(!started) return startGame();
     if(paused)  return;
-    // check slide start
+    // slide start
     for(let i=notes.length-1;i>=0;i--){
       const n=notes[i];
       if(n.type==='slide'){
-        const lx = lanes[n.lane].x;
+        const lx=lanes[n.lane].x;
         if(Math.abs(x-lx)<=tol && Math.abs(n.y-hitY)<=tol){
-          activeSlide = n;
+          activeSlide=n;
           return;
         }
       }
     }
-    // else tap
     if(!handleTap(x,tol)) resetStreak();
-  }, {passive:false});
+  },{passive:false});
 
   canvas.addEventListener('pointerup', e=>{
-    if(activeSlide){
-      const rect = canvas.getBoundingClientRect(),
-            x    = e.clientX-rect.left,
-            tol  = 30*1.1;
-      const n = activeSlide,
-            tx = lanes[n.target].x;
-      if(Math.abs(x-tx)<=tol){
-        award(n);
-        notes.splice(notes.indexOf(n),1);
-      } else {
-        resetStreak();
-      }
-      activeSlide = null;
+    if(!activeSlide) return;
+    const rect=canvas.getBoundingClientRect(),
+          x   =e.clientX-rect.left,
+          tol =30*1.1;
+    const n=activeSlide, tx=lanes[n.target].x;
+    if(Math.abs(x-tx)<=tol){
+      award(n);
+      notes.splice(notes.indexOf(n),1);
+    } else {
+      resetStreak();
     }
+    activeSlide=null;
   });
 
   function handleTap(x,tol){
@@ -202,10 +196,10 @@ console.log('Loading game.js v21');
   }
 
   function award(n){
-    streak++; maxStreak = Math.max(maxStreak,streak);
+    streak++; maxStreak=Math.max(maxStreak,streak);
     const oldC=combo;
-    combo = Math.min(8, Math.floor(streak/4)+1);
-    maxCombo = Math.max(maxCombo,combo);
+    combo=Math.min(8,Math.floor(streak/4)+1);
+    maxCombo=Math.max(maxCombo,combo);
     if(combo>oldC) levelTimer=1.0;
 
     const base=getBase(n.y),
@@ -217,7 +211,6 @@ console.log('Loading game.js v21');
     mulEl.textContent=`x${combo}`;
     strEl.textContent=`Streak: ${streak}`;
     updatePct();
-
     flashFx(n.lane, lanes[n.lane].x, hitY+sz/2);
     texts.push({ txt:getLabel(n.y), x:lanes[n.lane].x, y0:hitY-20, t:textDur });
   }
@@ -266,7 +259,7 @@ console.log('Loading game.js v21');
     const dt=1/60;
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    // flame flash
+    // flame
     if(levelTimer>0){
       const H=100, t=levelTimer, base=canvas.height;
       const grad=ctx.createLinearGradient(0,base-H,0,base);
@@ -281,11 +274,14 @@ console.log('Loading game.js v21');
         const s=Math.sin(x/step+Date.now()/300);
         ctx.lineTo(x,base-H*(0.3+0.2*s));
       }
-      ctx.lineTo(canvas.width,base);ctx.lineTo(0,base);ctx.closePath();ctx.fill();
+      ctx.lineTo(canvas.width,base);
+      ctx.lineTo(0,base);
+      ctx.closePath();
+      ctx.fill();
       levelTimer=Math.max(0,t-dt);
     }
 
-    // glowing strings
+    // strings
     ctx.save();
     ctx.shadowColor=combo>4?'orange':'cyan';
     ctx.shadowBlur=combo*8;
@@ -295,14 +291,14 @@ console.log('Loading game.js v21');
     });
     ctx.restore();
 
-    // targets
+    // target
     ctx.strokeStyle='#555';
     lanes.forEach(l=>{
       const extra=levelTimer>0?10:0;
       ctx.strokeRect(l.x-(sz+extra)/2,hitY-extra/2,sz+extra,sz+extra);
     });
 
-    // notes + slides
+    // notes & slides
     notes.forEach(n=>{
       n.y+=dy;
       const x0=lanes[n.lane].x, y0=n.y, w=sz, h=sz*1.2;
@@ -314,28 +310,37 @@ console.log('Loading game.js v21');
         ctx.quadraticCurveTo(x0,y0+h,x0+w/2,y0+h*0.4);
         ctx.closePath();ctx.fill();
       } else {
-        // slide: line+two picks
+        // angled slide
         const x1=lanes[n.target].x;
+        const sign = x1>x0?1:-1;
+        const extra = 20;
+        const yStart = y0 + h/2 - sign*extra/2;
+        const yEnd   = y0 + h/2 + sign*extra/2;
         ctx.strokeStyle=colors[n.lane];
         ctx.lineWidth=4;
-        ctx.beginPath();ctx.moveTo(x0,y0+h/2);ctx.lineTo(x1,y0+h/2);ctx.stroke();
-        // head pick
-        [x0,x1].forEach((xx,idx)=>{
-          ctx.fillStyle=colors[idx? n.target : n.lane];
+        ctx.beginPath();
+        ctx.moveTo(x0-extra*sign, yStart);
+        ctx.lineTo(x1+extra*sign, yEnd);
+        ctx.stroke();
+        // draw picks at ends
+        [ {x:x0,y:yStart}, {x:x1,y:yEnd} ].forEach((pt,idx)=>{
+          ctx.fillStyle = idx? colors[n.target] : colors[n.lane];
           ctx.beginPath();
-          ctx.moveTo(xx,y0);
-          ctx.lineTo(xx-w/2,y0+h*0.4);
-          ctx.quadraticCurveTo(xx,y0+h,xx+w/2,y0+h*0.4);
-          ctx.closePath();ctx.fill();
+          ctx.moveTo(pt.x, pt.y);
+          ctx.lineTo(pt.x-w/2, pt.y+h*0.4);
+          ctx.quadraticCurveTo(pt.x, pt.y+h, pt.x+w/2, pt.y+h*0.4);
+          ctx.closePath();
+          ctx.fill();
         });
       }
     });
 
-    // remove and reset
+    // off-screen (miss)
     for(let i=notes.length-1;i>=0;i--){
       if(notes[i].y>canvas.height){
         notes.splice(i,1);
         resetStreak();
+        updatePct();  // recalc percent on miss
       }
     }
 
@@ -354,10 +359,10 @@ console.log('Loading game.js v21');
         ctx.restore();
       });
       g.parts=g.parts.filter(p=>p.t>0);
-      if(g.t<=0&&g.parts.length===0)effects.splice(gi,1);
+      if(g.t<=0 && g.parts.length===0) effects.splice(gi,1);
     });
 
-    // floating texts
+    // floating text
     texts.forEach((t,ti)=>{
       const prog=1-(t.t/textDur),
             y   = t.y0 - floatDist*prog,
