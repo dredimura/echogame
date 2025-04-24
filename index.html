@@ -62,12 +62,10 @@
     document.body.addEventListener('pointerdown', e => {
       e.preventDefault();
       const msg = document.getElementById('message');
-      if (msg.style.display !== 'none' && window.startGame) {
-        startGame();
-      }
+      if (msg.style.display !== 'none' && window.startGame) startGame();
     });
   </script>
 
-  <script src="game.js?ver=29"></script>
+  <script src="game.js?ver=30"></script>
 </body>
 </html>
