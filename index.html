@@ -20,7 +20,7 @@
     /* end overlay */
     #endOverlay{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);display:none;align-items:center;justify-content:center;z-index:20}
     #endCard{background:rgba(20,20,20,0.85);padding:20px;border-radius:8px;text-align:center;animation:fadeIn 0.5s ease-out;position:relative;}
-    #stars{font-size:32px;margin-bottom:10px;animation:pulse 1s infinite alternate;color:#444;}
+    #stars{font-size:32px;margin-bottom:10px;animation:pulse 1s infinite alternate;color:#444;letter-spacing:4px;}
     @keyframes fadeIn{from{opacity:0;transform:scale(0.8)}to{opacity:1;transform:scale(1)}}
     @keyframes pulse{from{color:#ff0;text-shadow:0 0 4px #ff0}to{color:#ffa;text-shadow:0 0 12px #fa0}}
     #particles{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:hidden;z-index:21}
@@ -45,7 +45,7 @@
   <div id="endOverlay">
     <div id="endCard">
       <div id="particles"></div>
-      <div id="stars">☆☆☆☆☆</div>
+      <div id="stars">★★★★★</div>
       <h2>Your Results</h2>
       <div id="stats">
         <div id="finalScore"></div>
@@ -66,6 +66,6 @@
     });
   </script>
 
-  <script src="game.js?ver=32"></script>
+  <script src="game.js?ver=33"></script>
 </body>
 </html>
