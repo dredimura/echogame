@@ -57,14 +57,17 @@
     </div>
   </div>
 
-  <!-- anywhere‐tap to start -->
+  <!-- anywhere‐tap to start, but only while message is showing -->
   <script>
     document.body.addEventListener('pointerdown', e => {
       e.preventDefault();
-      if (window.startGame) startGame();
+      const msg = document.getElementById('message');
+      if (msg.style.display !== 'none' && window.startGame) {
+        startGame();
+      }
     });
   </script>
 
-  <script src="game.js?ver=26"></script>
+  <script src="game.js?ver=28"></script>
 </body>
 </html>
