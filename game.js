@@ -1,4 +1,4 @@
-console.log('Loading game.js v32 (speed+fade+fixpct)');
+console.log('Loading game.js v33 (speed+fade+fixpct+flame)');
 
 // expose globally
 window.startGame = startGame;
@@ -16,12 +16,12 @@ const sz        = 50,
       textDur   = 0.5,
       floatDist = 100;
 
-const actualBPM  = 169,
-      effBPM     = actualBPM/2,
-      travelBeats= 4,
-      speedMult  = 1.32,
-      spawnProb  = 0.45,
-      colors     = ['#0ff','#f0f','#0f0'];
+const actualBPM   = 169,
+      effBPM      = actualBPM/2,
+      travelBeats = 4,
+      speedMult   = 1.32,
+      spawnProb   = 0.45,
+      colors      = ['#0ff','#f0f','#0f0'];
 
 let hitY;
 const lanes=[{}, {}, {}];
@@ -120,15 +120,12 @@ function finishGame(){
 
   const p = total ? Math.round(hits/total*100) : 0;
 
-  let stars=Math.floor(p/20), rem=(p%20)/20;
-  if(rem>=0.75) stars++; else if(rem>=0.25) stars+=0.5;
-  stars=Math.min(5,stars);
-
-  let sOut='';
-  for(let i=1;i<=5;i++){
-    sOut += stars>=i ? '★' : (stars>=i-0.5 ? '⯪' : '☆');
+  // only full stars, no half-stars or placeholders
+  let sOut = '';
+  for(let i=1; i<=5; i++){
+    sOut += (p >= i*20) ? '★' : ' ';
   }
-  starsEl.textContent=sOut;
+  starsEl.textContent = sOut;
 
   fsEl.textContent=`Score: ${score}`;
   fpEl.textContent=`Hit Rate: ${p}%`;
@@ -163,10 +160,12 @@ function onTap(e){
             pts=base*combo;
       score+=pts;
       hits++;
+      const oldC=combo;
       streak++;
       combo=Math.min(8,Math.floor(streak/4)+1);
       maxCombo=Math.max(maxCombo,combo);
       maxStreak=Math.max(maxStreak,streak);
+      if(combo>oldC) levelTimer=1.0;
 
       scoreEl.textContent=`Score: ${score}`;
       scoreEl.classList.add('pop');
@@ -223,14 +222,36 @@ function flashFx(l,cx,cy){
 function draw(){
   if(paused) return;
   ctx.clearRect(0,0,canvas.width,canvas.height);
+  const dt = 1/60;
+
+  // level-up flame at bottom
+  if(levelTimer>0){
+    const H=80, t=levelTimer, base=canvas.height;
+    const g=ctx.createLinearGradient(0,base-H,0,base);
+    g.addColorStop(0, `rgba(255,165,0,${t})`);
+    g.addColorStop(0.5, `rgba(255,69,0,${t})`);
+    g.addColorStop(1, `rgba(0,0,0,0)`);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(0, base);
+    ctx.lineTo(0, base-H);
+    for(let x=0; x<=canvas.width; x+=20){
+      const s = 0.3 + 0.2 * Math.sin(x/20 + Date.now()/200);
+      ctx.lineTo(x, base - H * s);
+    }
+    ctx.lineTo(canvas.width, base);
+    ctx.closePath();
+    ctx.fill();
+    levelTimer = Math.max(0, levelTimer - dt);
+  }
 
   // strings glow
   ctx.save();
-  ctx.shadowColor=combo>4?'orange':'cyan';
-  ctx.shadowBlur =combo*8;
+  ctx.shadowColor = combo>4 ? 'orange' : 'cyan';
+  ctx.shadowBlur  = combo*8;
   [4,2,1].forEach((w,i)=>{
-    ctx.strokeStyle='#bbb';ctx.lineWidth=w;
-    ctx.beginPath();ctx.moveTo(lanes[i].x,0);ctx.lineTo(lanes[i].x,canvas.height);ctx.stroke();
+    ctx.strokeStyle='#bbb'; ctx.lineWidth=w;
+    ctx.beginPath(); ctx.moveTo(lanes[i].x,0); ctx.lineTo(lanes[i].x,canvas.height); ctx.stroke();
   });
   ctx.restore();
 
@@ -246,7 +267,6 @@ function draw(){
     const mid = hitY/2;
     let alpha = n.y < mid ? n.y/mid : 1;
     alpha = Math.max(0, Math.min(1, alpha));
-
     ctx.save();
     ctx.globalAlpha = alpha;
     const x=lanes[n.lane].x, y=n.y, w=sz, h=sz*1.2;
@@ -274,32 +294,34 @@ function draw(){
   // flashes & particles
   effects.forEach((g,gi)=>{
     const a=g.t/flashDur, x=lanes[g.lane].x;
-    ctx.save();ctx.globalAlpha=a;ctx.fillStyle='#fff';
-    ctx.fillRect(x-sz/2,hitY,sz,sz);ctx.restore();
-    g.t-=1/60;
+    ctx.save(); ctx.globalAlpha=a; ctx.fillStyle='#fff';
+    ctx.fillRect(x-sz/2,hitY,sz,sz); ctx.restore();
+    g.t -= dt;
     g.parts.forEach(p=>{
-      p.x+=p.vx*(1/60); p.y+=p.vy*(1/60); p.t-=1/60;
+      p.x += p.vx*dt; p.y += p.vy*dt; p.t -= dt;
       ctx.save();
-      ctx.globalAlpha=p.t/partLife;
-      ctx.fillStyle=colors[p.ci];
+      ctx.globalAlpha = p.t/partLife;
+      ctx.fillStyle   = colors[p.ci];
       ctx.fillRect(p.x-3,p.y-3,6,6);
       ctx.restore();
     });
-    g.parts=g.parts.filter(p=>p.t>0);
-    if(g.t<=0&&g.parts.length===0) effects.splice(gi,1);
+    g.parts = g.parts.filter(p=>p.t>0);
+    if(g.t<=0 && g.parts.length===0) effects.splice(gi,1);
   });
 
   // floating text
   texts.forEach((t,ti)=>{
-    const prog=1-(t.t/textDur),
-          y   = t.y0 - floatDist*prog,
-          a   = t.t/textDur;
-    ctx.save();ctx.globalAlpha=a;ctx.textAlign='center';ctx.font='20px sans-serif';
+    const prog = 1-(t.t/textDur),
+          y    = t.y0 - floatDist*prog,
+          a    = t.t/textDur;
+    ctx.save(); ctx.globalAlpha=a; ctx.textAlign='center'; ctx.font='20px sans-serif';
     let fill='#fff';
-    if(t.txt==='Perfect') fill='yellow';
+    if(t.txt==='Perfect')   fill='yellow';
     else if(t.txt==='Excellent') fill='magenta';
-    ctx.fillStyle=fill;ctx.fillText(t.txt,t.x,y);ctx.restore();
-    t.t-=1/60;
+    ctx.fillStyle=fill;
+    ctx.fillText(t.txt,t.x,y);
+    ctx.restore();
+    t.t -= dt;
     if(t.t<=0) texts.splice(ti,1);
   });
 
