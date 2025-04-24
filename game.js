@@ -1,34 +1,36 @@
-console.log('Loading game.js v20');
+console.log('Loading game.js v21');
 
 (() => {
-  const canvas    = document.getElementById('gameCanvas'),
-        ctx       = canvas.getContext('2d'),
-        scoreEl   = document.getElementById('score'),
-        pctEl     = document.getElementById('percent'),
-        mulEl     = document.getElementById('multiplier'),
-        strEl     = document.getElementById('streak'),
-        msgEl     = document.getElementById('message'),
-        pauseBtn  = document.getElementById('pauseButton'),
-        audio     = document.getElementById('gameAudio'),
-        endOv     = document.getElementById('endOverlay'),
-        starsEl   = document.getElementById('stars'),
-        fsEl      = document.getElementById('finalScore'),
-        fpEl      = document.getElementById('finalPercent'),
-        mcEl      = document.getElementById('finalMaxCombo'),
-        lsEl      = document.getElementById('finalStreak'),
-        restart   = document.getElementById('restartBtn');
+  const canvas   = document.getElementById('gameCanvas'),
+        ctx      = canvas.getContext('2d'),
+        scoreEl  = document.getElementById('score'),
+        pctEl    = document.getElementById('percent'),
+        mulEl    = document.getElementById('multiplier'),
+        strEl    = document.getElementById('streak'),
+        msgEl    = document.getElementById('message'),
+        pauseBtn = document.getElementById('pauseButton'),
+        audio    = document.getElementById('gameAudio'),
+        endOv    = document.getElementById('endOverlay'),
+        starsEl  = document.getElementById('stars'),
+        fsEl     = document.getElementById('finalScore'),
+        fpEl     = document.getElementById('finalPercent'),
+        mcEl     = document.getElementById('finalMaxCombo'),
+        lsEl     = document.getElementById('finalStreak'),
+        restart  = document.getElementById('restartBtn'),
+        partDiv  = document.getElementById('particles');
 
   let started=false, paused=false,
-      score=0, total=0, spawnID,
+      score=0, total=0, spawnID, stopID,
       streak=0, combo=1, maxCombo=1, maxStreak=0,
-      levelTimer=0, holdsInProgress={};
+      levelTimer=0, activeSlide=null;
 
   const notes=[], effects=[], texts=[];
   const sz=50, flashDur=0.1, partLife=0.5, textDur=0.5, floatDist=100;
-  const actualBPM    = 169,
-        effBPM       = actualBPM/2,
-        spawnProb    = 0.45,
-        colors       = ['#0ff','#f0f','#0f0'];
+  const actualBPM   = 169,
+        effBPM      = actualBPM/2,
+        spawnProb   = 0.45,
+        slideProb   = 0.15,
+        colors      = ['#0ff','#f0f','#0f0'];
   let dy, hitY;
   const lanes=[{}, {}, {}];
 
@@ -45,10 +47,9 @@ console.log('Loading game.js v20');
   resize();
 
   function startGame(){
-    // reset
     started=true; paused=false;
-    score=0; total=0; streak=0; combo=1; maxCombo=1; maxStreak=0; levelTimer=0;
-    notes.length=0; effects.length=0; texts.length=0; holdsInProgress={};
+    score=0; total=0; streak=0; combo=1; maxCombo=1; maxStreak=0; levelTimer=0; activeSlide=null;
+    notes.length=0; effects.length=0; texts.length=0;
     scoreEl.textContent='Score: 0';
     pctEl.textContent  ='0%';
     mulEl.textContent  ='x1';
@@ -56,130 +57,142 @@ console.log('Loading game.js v20');
     msgEl.style.display='none';
     pauseBtn.style.display='block';
     endOv.style.display='none';
+    partDiv.innerHTML='';
 
     audio.currentTime=0; audio.play().catch(console.warn);
     audio.onended = finishGame;
     spawnNote();
     spawnID = setInterval(spawnNote, (60/effBPM)*1000/4);
+    // stop spawns at 2:24
+    stopID = setTimeout(() => clearInterval(spawnID), 144000);
     requestAnimationFrame(draw);
   }
 
-  // pause/resume
   function togglePause(e){
     e.stopPropagation();
     if(!started) return;
     paused = !paused;
     if(paused){
       audio.pause(); clearInterval(spawnID);
+      clearTimeout(stopID);
       pauseBtn.textContent='Resume';
     } else {
       audio.play().catch(console.warn);
       spawnID = setInterval(spawnNote, (60/effBPM)*1000/4);
+      stopID = setTimeout(()=>clearInterval(spawnID), 144000 - audio.currentTime*1000);
       pauseBtn.textContent='Pause';
       requestAnimationFrame(draw);
     }
   }
   pauseBtn.addEventListener('click', togglePause);
 
-  // spawn normal or hold note
   function spawnNote(){
     if(!started) return;
     if(Math.random()<spawnProb){
       const lane = Math.floor(Math.random()*3);
-      // 20% holds
-      if(Math.random()<0.2){
-        // hold length = 2 beats
-        const lengthPx = dy * ((60/effBPM)*2*60);
-        notes.push({ y:-sz, lane, type:'hold', len:lengthPx });
+      if(Math.random()<slideProb){
+        // slide to neighbor
+        let target = lane===1 ? (Math.random()<0.5?0:2)
+                     : lane===0 ? 1 : 1;
+        notes.push({ y:-sz, lane, type:'slide', target });
       } else {
         notes.push({ y:-sz, lane, type:'tap' });
       }
-      total++;
-      updatePct();
+      total++; updatePct();
     }
   }
 
-  // finish
   function finishGame(){
-    started=false; clearInterval(spawnID);
-    // compute percent
+    started=false; clearInterval(spawnID); clearTimeout(stopID);
+
     const raw = total?Math.round(score/(total*100)*100):0,
           pct = Math.min(100, raw);
-    // compute stars
-    let stars = Math.floor(pct/20); // each 20% = 1 star
-    const rem = (pct%20)/20;
-    if(rem>=0.75) stars+=1;
-    else if(rem>=0.25) stars+=0.5;
-    stars = Math.min(5, stars);
-    // render stars
-    let out='';
-    for(let i=1;i<=5;i++){
-      if(stars>=i) out+='★';
-      else if(stars>=i-0.5) out+='☆'.replace('☆','⯪'); // half-star char
-      else out+='☆';
-    }
-    starsEl.textContent=out;
 
-    // show metrics
-    fsEl.textContent        = `Score: ${score}`;
-    fpEl.textContent        = `Hit Rate: ${pct}%`;
-    mcEl.textContent        = `Max Combo: ${maxCombo}x`;
-    lsEl.textContent        = `Longest Streak: ${maxStreak}`;
+    // star rating
+    let stars = Math.floor(pct/20),
+        rem   = (pct%20)/20;
+    if(rem >= 0.75) stars+=1;
+    else if(rem >= 0.25) stars+=0.5;
+    stars = Math.min(5, stars);
+
+    // render stars
+    let sOut = '';
+    for(let i=1;i<=5;i++){
+      if(stars>=i)         sOut+='★';
+      else if(stars>=i-0.5)sOut+='⯪';
+      else                 sOut+='☆';
+    }
+    starsEl.textContent = sOut;
+
+    fsEl.textContent = `Score: ${score}`;
+    fpEl.textContent = `Hit Rate: ${pct}%`;
+    mcEl.textContent = `Max Combo: ${maxCombo}x`;
+    lsEl.textContent = `Longest Streak: ${maxStreak}`;
     endOv.style.display='flex';
+
+    // particle burst
+    for(let i=0;i<30;i++){
+      const p = document.createElement('div');
+      p.className='p';
+      const angle = Math.random()*2*Math.PI,
+            dist  = 100+Math.random()*50;
+      p.style.left = '50%';
+      p.style.top  = '20%';
+      p.style.setProperty('--dx', (Math.cos(angle)*dist)+'px');
+      p.style.setProperty('--dy', (Math.sin(angle)*dist)+'px');
+      partDiv.appendChild(p);
+      setTimeout(()=>p.remove(),1000);
+    }
   }
 
   restart.addEventListener('click', startGame);
 
-  // handle taps & holds
+  // input handlers
   canvas.addEventListener('pointerdown', e=>{
     e.preventDefault();
+    const rect = canvas.getBoundingClientRect(),
+          x    = e.clientX-rect.left,
+          tol  = 30*1.1;
     if(!started) return startGame();
-    if(paused) return;
-    const rect=canvas.getBoundingClientRect(),
-          x   = e.clientX-rect.left,
-          tol = 30*1.1;
-    // check hold start
+    if(paused)  return;
+    // check slide start
     for(let i=notes.length-1;i>=0;i--){
-      const n=notes[i], lx=lanes[n.lane].x;
-      if(n.type==='hold' &&
-         x>=lx-tol && x<=lx+tol &&
-         n.y>=hitY-tol && n.y<=hitY+tol
-      ){
-        // begin hold
-        holdsInProgress[n.lane]=n;
-        return;
+      const n=notes[i];
+      if(n.type==='slide'){
+        const lx = lanes[n.lane].x;
+        if(Math.abs(x-lx)<=tol && Math.abs(n.y-hitY)<=tol){
+          activeSlide = n;
+          return;
+        }
       }
     }
-    // else check tap
-    if(!handleTap(x, tol)) resetStreak();
+    // else tap
+    if(!handleTap(x,tol)) resetStreak();
   }, {passive:false});
 
   canvas.addEventListener('pointerup', e=>{
-    // finish any holds
-    Object.keys(holdsInProgress).forEach(lk=>{
-      const n = holdsInProgress[lk];
-      // if tail is still in zone or passed, full hold achieved
-      const tailY = n.y + n.len;
-      if(tailY >= hitY-10){
+    if(activeSlide){
+      const rect = canvas.getBoundingClientRect(),
+            x    = e.clientX-rect.left,
+            tol  = 30*1.1;
+      const n = activeSlide,
+            tx = lanes[n.target].x;
+      if(Math.abs(x-tx)<=tol){
         award(n);
+        notes.splice(notes.indexOf(n),1);
       } else {
         resetStreak();
       }
-      // remove that note
-      const idx = notes.indexOf(n);
-      if(idx>=0) notes.splice(idx,1);
-      delete holdsInProgress[lk];
-    });
+      activeSlide = null;
+    }
   });
 
-  // tap logic
-  function handleTap(x, tol){
+  function handleTap(x,tol){
     for(let i=notes.length-1;i>=0;i--){
       const n=notes[i], lx=lanes[n.lane].x;
       if(n.type==='tap' &&
-         x>=lx-tol && x<=lx+tol &&
-         n.y>=hitY-tol && n.y<=hitY+tol
-      ){
+         Math.abs(x-lx)<=tol &&
+         Math.abs(n.y-hitY)<=tol){
         award(n);
         notes.splice(i,1);
         return true;
@@ -189,23 +202,22 @@ console.log('Loading game.js v20');
   }
 
   function award(n){
-    // streak/combo
-    streak++;
-    maxStreak = Math.max(maxStreak, streak);
+    streak++; maxStreak = Math.max(maxStreak,streak);
+    const oldC=combo;
     combo = Math.min(8, Math.floor(streak/4)+1);
-    maxCombo = Math.max(maxCombo, combo);
-    // level-up effect
-    if(combo>Math.floor((streak-1)/4)+1) levelTimer=1.0;
-    // score = base * combo
-    const base = getBase(n.y),
-          pts  = base * combo;
-    score += pts;
-    scoreEl.textContent = `Score: ${score}`;
+    maxCombo = Math.max(maxCombo,combo);
+    if(combo>oldC) levelTimer=1.0;
+
+    const base=getBase(n.y),
+          pts = base*combo;
+    score+=pts;
+    scoreEl.textContent=`Score: ${score}`;
     scoreEl.classList.add('pop');
-    scoreEl.onanimationend = ()=>scoreEl.classList.remove('pop');
-    mulEl.textContent = `x${combo}`;
-    strEl.textContent = `Streak: ${streak}`;
+    scoreEl.onanimationend=()=>scoreEl.classList.remove('pop');
+    mulEl.textContent=`x${combo}`;
+    strEl.textContent=`Streak: ${streak}`;
     updatePct();
+
     flashFx(n.lane, lanes[n.lane].x, hitY+sz/2);
     texts.push({ txt:getLabel(n.y), x:lanes[n.lane].x, y0:hitY-20, t:textDur });
   }
@@ -234,15 +246,15 @@ console.log('Loading game.js v20');
   }
 
   function updatePct(){
-    const raw = total ? Math.round(score/(total*100)*100) : 0;
-    const p   = Math.min(100, raw);
+    const raw = total?Math.round(score/(total*100)*100):0,
+          p   = Math.min(100,raw);
     pctEl.textContent=`${p}%`;
   }
 
   function flashFx(l, cx, cy){
     effects.push({
-      lane: l, t:flashDur,
-      parts: Array.from({length:8}).map(_=>{
+      lane:l, t:flashDur,
+      parts:Array.from({length:8}).map(_=>{
         const a=Math.random()*2*Math.PI, s=100+Math.random()*100;
         return {x:cx,y:cy,vx:Math.cos(a)*s,vy:Math.sin(a)*s,t:partLife,ci:l};
       })
@@ -254,7 +266,7 @@ console.log('Loading game.js v20');
     const dt=1/60;
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    // wavy flame on level-up
+    // flame flash
     if(levelTimer>0){
       const H=100, t=levelTimer, base=canvas.height;
       const grad=ctx.createLinearGradient(0,base-H,0,base);
@@ -263,68 +275,65 @@ console.log('Loading game.js v20');
       grad.addColorStop(1,`rgba(0,0,0,0)`);
       ctx.fillStyle=grad;
       ctx.beginPath();
-      ctx.moveTo(0,base);
-      ctx.lineTo(0,base-H*(0.3+0.2*Math.sin(Date.now()/200)));
+      ctx.moveTo(0,base-H*(0.3+0.2*Math.sin(Date.now()/200)));
       const step=20;
-      for(let x=step;x<=canvas.width;x+=step){
+      for(let x=0;x<=canvas.width;x+=step){
         const s=Math.sin(x/step+Date.now()/300);
         ctx.lineTo(x,base-H*(0.3+0.2*s));
       }
-      ctx.lineTo(canvas.width,base);
-      ctx.closePath();
-      ctx.fill();
+      ctx.lineTo(canvas.width,base);ctx.lineTo(0,base);ctx.closePath();ctx.fill();
       levelTimer=Math.max(0,t-dt);
     }
 
-    // glow strings
+    // glowing strings
     ctx.save();
-    ctx.shadowColor = combo>4?'orange':'cyan';
-    ctx.shadowBlur  = combo*8;
+    ctx.shadowColor=combo>4?'orange':'cyan';
+    ctx.shadowBlur=combo*8;
     [4,2,1].forEach((w,i)=>{
-      ctx.strokeStyle='#bbb'; ctx.lineWidth=w;
-      ctx.beginPath();
-      ctx.moveTo(lanes[i].x,0);
-      ctx.lineTo(lanes[i].x,canvas.height);
-      ctx.stroke();
+      ctx.strokeStyle='#bbb';ctx.lineWidth=w;
+      ctx.beginPath();ctx.moveTo(lanes[i].x,0);ctx.lineTo(lanes[i].x,canvas.height);ctx.stroke();
     });
     ctx.restore();
 
-    // target zones
+    // targets
     ctx.strokeStyle='#555';
-    lanes.forEach((l,i)=>{
-      const extra = levelTimer>0?10:0;
+    lanes.forEach(l=>{
+      const extra=levelTimer>0?10:0;
       ctx.strokeRect(l.x-(sz+extra)/2,hitY-extra/2,sz+extra,sz+extra);
     });
 
-    // draw notes & holds
+    // notes + slides
     notes.forEach(n=>{
       n.y+=dy;
-      const x=lanes[n.lane].x;
-      ctx.fillStyle=colors[n.lane];
+      const x0=lanes[n.lane].x, y0=n.y, w=sz, h=sz*1.2;
       if(n.type==='tap'){
-        const w=sz,h=sz*1.2;
+        ctx.fillStyle=colors[n.lane];
         ctx.beginPath();
-        ctx.moveTo(x,n.y);
-        ctx.lineTo(x-w/2,n.y+h*0.4);
-        ctx.quadraticCurveTo(x,n.y+h,x+w/2,n.y+h*0.4);
-        ctx.closePath(); ctx.fill();
-      } else { // hold
-        ctx.globalAlpha=0.6;
-        ctx.fillRect(x-sz/4, n.y, sz/2, n.len);
-        ctx.globalAlpha=1;
-        // head
-        const w=sz/1.5,h=sz*0.9;
-        ctx.beginPath();
-        ctx.moveTo(x,n.y);
-        ctx.lineTo(x-w/2,n.y+h*0.4);
-        ctx.quadraticCurveTo(x,n.y+h,x+w/2,n.y+h*0.4);
-        ctx.closePath(); ctx.fill();
+        ctx.moveTo(x0,y0);
+        ctx.lineTo(x0-w/2,y0+h*0.4);
+        ctx.quadraticCurveTo(x0,y0+h,x0+w/2,y0+h*0.4);
+        ctx.closePath();ctx.fill();
+      } else {
+        // slide: line+two picks
+        const x1=lanes[n.target].x;
+        ctx.strokeStyle=colors[n.lane];
+        ctx.lineWidth=4;
+        ctx.beginPath();ctx.moveTo(x0,y0+h/2);ctx.lineTo(x1,y0+h/2);ctx.stroke();
+        // head pick
+        [x0,x1].forEach((xx,idx)=>{
+          ctx.fillStyle=colors[idx? n.target : n.lane];
+          ctx.beginPath();
+          ctx.moveTo(xx,y0);
+          ctx.lineTo(xx-w/2,y0+h*0.4);
+          ctx.quadraticCurveTo(xx,y0+h,xx+w/2,y0+h*0.4);
+          ctx.closePath();ctx.fill();
+        });
       }
     });
 
-    // off-screen removal
+    // remove and reset
     for(let i=notes.length-1;i>=0;i--){
-      if(notes[i].y > canvas.height){
+      if(notes[i].y>canvas.height){
         notes.splice(i,1);
         resetStreak();
       }
@@ -345,13 +354,13 @@ console.log('Loading game.js v20');
         ctx.restore();
       });
       g.parts=g.parts.filter(p=>p.t>0);
-      if(g.t<=0 && g.parts.length===0) effects.splice(gi,1);
+      if(g.t<=0&&g.parts.length===0)effects.splice(gi,1);
     });
 
     // floating texts
     texts.forEach((t,ti)=>{
       const prog=1-(t.t/textDur),
-            y   = t.y0 - (floatDist*prog),
+            y   = t.y0 - floatDist*prog,
             a   = t.t/textDur;
       ctx.save();ctx.globalAlpha=a;ctx.textAlign='center';ctx.font='20px sans-serif';
       let fill='#fff';
