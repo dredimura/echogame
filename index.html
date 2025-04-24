@@ -14,7 +14,7 @@
     #score,#percent,#multiplier,#streak{position:absolute;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.6);padding:4px 8px;border-radius:4px;z-index:10}
     #score{top:10px;font-size:20px}#percent{top:40px;font-size:16px}#multiplier{top:70px;font-size:16px}#streak{top:100px;font-size:16px}
     #score.pop{animation:pop 0.3s ease-out}@keyframes pop{0%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.4)}100%{transform:translateX(-50%) scale(1)}}
-    #message{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:24px;color:#ccc;z-index:10;cursor:pointer}
+    #message{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:24px;color:#ccc;z-index:10;pointer-events:none}
     #pauseButton{position:absolute;top:10px;right:10px;padding:6px 12px;background:#222;color:#fff;border:1px solid #555;border-radius:4px;font-size:14px;display:none;z-index:10}
     canvas{position:absolute;top:0;left:0;width:100%;height:100%;touch-action:none}
     /* end overlay */
@@ -57,14 +57,14 @@
     </div>
   </div>
 
-  <!-- ensure tapping “Tap to Start” calls startGame -->
+  <!-- anywhere‐tap to start -->
   <script>
-    document.getElementById('message').addEventListener('pointerdown', e => {
+    document.body.addEventListener('pointerdown', e => {
       e.preventDefault();
       if (window.startGame) startGame();
     });
   </script>
 
-  <script src="game.js?ver=25"></script>
+  <script src="game.js?ver=26"></script>
 </body>
 </html>
